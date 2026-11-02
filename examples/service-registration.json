@@ -1,0 +1,12 @@
+{
+  "serviceId": "archivist",
+  "name": "ARCHIVIST",
+  "version": "0.1.0",
+  "description": "Independent backup and recovery service",
+  "healthEndpoint": "http://archivist.internal:8080/health",
+  "apiEndpoint": "http://archivist.internal:8080",
+  "deploymentType": "host-process",
+  "status": "running",
+  "registeredAt": "2026-11-02T17:00:00Z",
+  "metadata": {}
+}

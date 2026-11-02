@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/agent.task.started.v1.schema.json",
+  "title": "AgentTaskStartedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "agent.task.started" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/agent-task.v1.schema.json" },
+        { "type": "object", "required": ["status", "startedAt"], "properties": {
+          "status": { "const": "started" },
+          "startedAt": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/startedAt" }
+        } }
+      ] }
+    } }
+  ]
+}

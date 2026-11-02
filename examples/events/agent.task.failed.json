@@ -1,0 +1,17 @@
+{
+  "eventId": "event-task-failed-002",
+  "eventType": "agent.task.failed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:02:00Z",
+  "source": "servitor",
+  "correlationId": "task-002",
+  "payload": {
+    "taskId": "task-002",
+    "agentId": "servitor-summary",
+    "status": "failed",
+    "priority": "normal",
+    "createdAt": "2026-11-02T17:01:00Z",
+    "completedAt": "2026-11-02T17:02:00Z",
+    "error": { "code": "MODEL_UNAVAILABLE", "message": "The local model is unavailable." }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "eventId": "event-backup-failed-002",
+  "eventType": "backup.failed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:02:00Z",
+  "source": "archivist",
+  "correlationId": "backup-002",
+  "payload": {
+    "backupId": "backup-002",
+    "source": "ice-iq/database",
+    "destination": "home-backup-volume",
+    "startedAt": "2026-11-02T17:01:00Z",
+    "completedAt": "2026-11-02T17:02:00Z",
+    "encrypted": true,
+    "verificationStatus": "not_requested",
+    "status": "failed",
+    "failureReason": "Destination is unavailable"
+  }
+}

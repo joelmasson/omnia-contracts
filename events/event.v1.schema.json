@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/event.v1.schema.json",
+  "title": "OmniaEvent",
+  "oneOf": [
+    { "$ref": "./service.health.changed.v1.schema.json" },
+    { "$ref": "./service.unavailable.v1.schema.json" },
+    { "$ref": "./incident.created.v1.schema.json" },
+    { "$ref": "./incident.resolved.v1.schema.json" },
+    { "$ref": "./deployment.started.v1.schema.json" },
+    { "$ref": "./deployment.completed.v1.schema.json" },
+    { "$ref": "./deployment.failed.v1.schema.json" },
+    { "$ref": "./backup.started.v1.schema.json" },
+    { "$ref": "./backup.completed.v1.schema.json" },
+    { "$ref": "./backup.failed.v1.schema.json" },
+    { "$ref": "./agent.task.started.v1.schema.json" },
+    { "$ref": "./agent.task.completed.v1.schema.json" },
+    { "$ref": "./agent.task.failed.v1.schema.json" }
+  ]
+}

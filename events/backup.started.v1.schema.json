@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/backup.started.v1.schema.json",
+  "title": "BackupStartedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "backup.started" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/backup.v1.schema.json" },
+        { "type": "object", "required": ["status"], "properties": { "status": { "const": "started" } } }
+      ] }
+    } }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/deployment.failed.v1.schema.json",
+  "title": "DeploymentFailedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "deployment.failed" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/deployment.v1.schema.json" },
+        { "type": "object", "required": ["status", "completedAt"], "properties": {
+          "status": { "const": "failed" },
+          "completedAt": { "$ref": "../schemas/deployment.v1.schema.json#/properties/completedAt" }
+        } }
+      ] }
+    } }
+  ]
+}

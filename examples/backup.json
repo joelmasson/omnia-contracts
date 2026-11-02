@@ -1,0 +1,9 @@
+{
+  "backupId": "backup-001",
+  "source": "ice-iq/database",
+  "destination": "home-backup-volume",
+  "startedAt": "2026-11-02T17:00:00Z",
+  "encrypted": true,
+  "verificationStatus": "pending",
+  "status": "started"
+}

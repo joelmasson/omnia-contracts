@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/incident.resolved.v1.schema.json",
+  "title": "IncidentResolvedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "payload"],
+      "properties": {
+        "eventType": { "const": "incident.resolved" },
+        "payload": {
+          "allOf": [
+            { "$ref": "../schemas/incident.v1.schema.json" },
+            { "type": "object", "required": ["status", "resolvedAt"], "properties": {
+              "status": { "const": "resolved" },
+              "resolvedAt": { "$ref": "../schemas/incident.v1.schema.json#/properties/resolvedAt" }
+            } }
+          ]
+        }
+      }
+    }
+  ]
+}

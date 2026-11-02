@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/health-status.v1.schema.json",
+  "title": "HealthStatus",
+  "type": "object",
+  "required": ["serviceId", "status", "timestamp", "uptime", "checks", "details"],
+  "properties": {
+    "serviceId": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy", "unknown"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "uptime": { "type": ["number", "null"], "minimum": 0, "description": "Elapsed seconds since service startup, or null when never observed." },
+    "checks": {
+      "type": "array",
+      "items": {
+        "title": "HealthCheck",
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy", "unknown"] },
+          "details": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": true
+      }
+    },
+    "details": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}

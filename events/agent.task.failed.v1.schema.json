@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/agent.task.failed.v1.schema.json",
+  "title": "AgentTaskFailedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "agent.task.failed" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/agent-task.v1.schema.json" },
+        { "type": "object", "required": ["status", "completedAt", "error"], "properties": {
+          "status": { "const": "failed" },
+          "completedAt": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/completedAt" },
+          "error": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/error" }
+        } }
+      ] }
+    } }
+  ]
+}

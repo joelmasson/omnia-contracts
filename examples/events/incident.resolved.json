@@ -1,0 +1,20 @@
+{
+  "eventId": "event-incident-resolved-001",
+  "eventType": "incident.resolved",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:01:00Z",
+  "source": "noosphere",
+  "correlationId": "health-001",
+  "payload": {
+    "incidentId": "incident-001",
+    "source": "noosphere",
+    "severity": "high",
+    "category": "availability",
+    "title": "ARCHIVIST unavailable",
+    "description": "Service recovered.",
+    "detectedAt": "2026-11-02T17:00:00Z",
+    "resolvedAt": "2026-11-02T17:01:00Z",
+    "status": "resolved",
+    "metadata": { "serviceId": "archivist" }
+  }
+}

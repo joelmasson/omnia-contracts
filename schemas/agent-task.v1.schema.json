@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/agent-task.v1.schema.json",
+  "title": "AgentTask",
+  "type": "object",
+  "required": ["taskId", "agentId", "status", "priority", "createdAt"],
+  "properties": {
+    "taskId": { "type": "string", "minLength": 1 },
+    "agentId": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["queued", "started", "completed", "failed", "cancelled"] },
+    "priority": { "type": "string", "enum": ["low", "normal", "high", "critical"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "result": {
+      "description": "Any JSON value; absent until a result is available.",
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": true },
+        { "type": "object", "additionalProperties": true }
+      ]
+    },
+    "error": {
+      "title": "AgentTaskError",
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "details": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

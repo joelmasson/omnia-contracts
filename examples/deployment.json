@@ -1,0 +1,11 @@
+{
+  "deploymentId": "deployment-001",
+  "applicationId": "ice-iq",
+  "version": "2026.11.02",
+  "environment": "home",
+  "initiatedBy": "operator",
+  "startedAt": "2026-11-02T17:00:00Z",
+  "status": "started",
+  "previousVersion": "2026.10.31",
+  "rollbackAvailable": true
+}

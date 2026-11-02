@@ -1,0 +1,16 @@
+{
+  "eventId": "event-task-started-001",
+  "eventType": "agent.task.started",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:00:00Z",
+  "source": "servitor",
+  "correlationId": "task-001",
+  "payload": {
+    "taskId": "task-001",
+    "agentId": "servitor-summary",
+    "status": "started",
+    "priority": "normal",
+    "createdAt": "2026-11-02T16:59:00Z",
+    "startedAt": "2026-11-02T17:00:00Z"
+  }
+}

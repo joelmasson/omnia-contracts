@@ -1,0 +1,11 @@
+{
+  "incidentId": "incident-001",
+  "source": "noosphere",
+  "severity": "high",
+  "category": "availability",
+  "title": "ARCHIVIST unavailable",
+  "description": "The health endpoint did not respond before the local timeout.",
+  "detectedAt": "2026-11-02T17:00:00Z",
+  "status": "open",
+  "metadata": { "serviceId": "archivist" }
+}

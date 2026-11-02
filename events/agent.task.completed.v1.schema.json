@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/agent.task.completed.v1.schema.json",
+  "title": "AgentTaskCompletedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "agent.task.completed" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/agent-task.v1.schema.json" },
+        { "type": "object", "required": ["status", "startedAt", "completedAt", "result"], "properties": {
+          "status": { "const": "completed" },
+          "startedAt": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/startedAt" },
+          "completedAt": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/completedAt" },
+          "result": { "$ref": "../schemas/agent-task.v1.schema.json#/properties/result" }
+        } }
+      ] }
+    } }
+  ]
+}

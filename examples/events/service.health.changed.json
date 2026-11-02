@@ -1,0 +1,16 @@
+{
+  "eventId": "event-health-001",
+  "eventType": "service.health.changed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:00:00Z",
+  "source": "archivist",
+  "correlationId": "health-001",
+  "payload": {
+    "serviceId": "archivist",
+    "status": "degraded",
+    "timestamp": "2026-11-02T17:00:00Z",
+    "uptime": 3600,
+    "checks": [{ "name": "storage", "status": "degraded" }],
+    "details": { "reason": "Low free space" }
+  }
+}

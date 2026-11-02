@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/backup.v1.schema.json",
+  "title": "Backup",
+  "type": "object",
+  "required": ["backupId", "source", "destination", "startedAt", "encrypted", "verificationStatus", "status"],
+  "properties": {
+    "backupId": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "minLength": 1, "description": "Logical source reference, never credentials." },
+    "destination": { "type": "string", "minLength": 1, "description": "Logical destination reference, never credentials." },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "sizeBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "encrypted": { "type": "boolean" },
+    "checksum": { "type": "string", "pattern": "^[a-z0-9-]+:[A-Fa-f0-9]+$", "description": "Algorithm-prefixed hexadecimal digest, e.g. sha256:abcd...; algorithm policy belongs to ARCHIVIST." },
+    "verificationStatus": { "type": "string", "enum": ["pending", "verified", "failed", "not_requested"] },
+    "status": { "type": "string", "enum": ["started", "completed", "failed"] }
+  },
+  "additionalProperties": true
+}

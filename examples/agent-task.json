@@ -1,0 +1,7 @@
+{
+  "taskId": "task-001",
+  "agentId": "servitor-summary",
+  "status": "queued",
+  "priority": "normal",
+  "createdAt": "2026-11-02T16:59:00Z"
+}

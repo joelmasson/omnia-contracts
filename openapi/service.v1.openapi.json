@@ -1,0 +1,96 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "OMNIA service interoperability API",
+    "version": "0.1.0",
+    "description": "Optional service-neutral capabilities, not a central runtime. Services implement only the capabilities they expose. Authentication, authorization, TLS, discovery, retry and persistence policies are deployment responsibilities. This specification does not authorize public exposure."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Read the responding service's health snapshot",
+        "responses": {
+          "200": {
+            "description": "Health snapshot; consumers must inspect status, not just HTTP success.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../schemas/health-status.v1.schema.json" },
+                "examples": { "healthy": { "externalValue": "../examples/health-status.json" } }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is not ready or unavailable; a health snapshot is still returned.",
+            "content": {
+              "application/json": { "schema": { "$ref": "../schemas/health-status.v1.schema.json" } }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "post": {
+        "operationId": "receiveEvent",
+        "summary": "Accept one supported versioned event",
+        "description": "Acceptance is not completion or a guarantee of durable delivery. Receivers must validate eventType, eventVersion and payload before returning 202. Duplicate eventIds should not cause repeated side effects. No ordering, exactly-once delivery or broker is implied.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "../events/event.v1.schema.json" },
+              "examples": { "backupCompleted": { "externalValue": "../examples/events/backup.completed.json" } }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Event validated and accepted; empty response body." },
+          "400": { "$ref": "#/components/responses/MalformedRequest" },
+          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
+          "422": { "$ref": "#/components/responses/InvalidEvent" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ServiceRegistration": { "$ref": "../schemas/service-registration.v1.schema.json" },
+      "HealthStatus": { "$ref": "../schemas/health-status.v1.schema.json" },
+      "Incident": { "$ref": "../schemas/incident.v1.schema.json" },
+      "Deployment": { "$ref": "../schemas/deployment.v1.schema.json" },
+      "Backup": { "$ref": "../schemas/backup.v1.schema.json" },
+      "AgentTask": { "$ref": "../schemas/agent-task.v1.schema.json" },
+      "Event": { "$ref": "../events/event.v1.schema.json" },
+      "Problem": {
+        "type": "object",
+        "required": ["title", "status", "detail"],
+        "properties": {
+          "title": { "type": "string" },
+          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "responses": {
+      "MalformedRequest": {
+        "description": "Malformed JSON or HTTP request.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "UnsupportedMediaType": {
+        "description": "Content-Type must be application/json.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "InvalidEvent": {
+        "description": "Invalid payload or unsupported event type/version; detail explains the validation failure without secrets.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "Unavailable": {
+        "description": "Receiver cannot currently accept the event.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      }
+    }
+  }
+}

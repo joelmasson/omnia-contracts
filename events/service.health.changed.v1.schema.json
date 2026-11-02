@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/service.health.changed.v1.schema.json",
+  "title": "ServiceHealthChangedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "payload"],
+      "properties": {
+        "eventType": { "const": "service.health.changed" },
+        "payload": { "$ref": "../schemas/health-status.v1.schema.json" }
+      }
+    }
+  ]
+}

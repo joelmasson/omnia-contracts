@@ -1,0 +1,25 @@
+{
+  "name": "@omnia/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build-time communication contracts for independently deployed OMNIA services",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "generate": "tsx typescript/generate.ts",
+    "generate:check": "tsx typescript/generate.ts --check",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "validate": "npm run generate:check && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@types/node": "^22.0.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.4",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "zod": "^4.1.0"
+  }
+}

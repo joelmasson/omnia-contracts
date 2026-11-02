@@ -1,0 +1,16 @@
+{
+  "eventId": "event-unavailable-001",
+  "eventType": "service.unavailable",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:00:00Z",
+  "source": "noosphere",
+  "correlationId": "health-001",
+  "payload": {
+    "serviceId": "archivist",
+    "status": "unknown",
+    "timestamp": "2026-11-02T17:00:00Z",
+    "uptime": null,
+    "checks": [{ "name": "http", "status": "unknown" }],
+    "details": { "reason": "Health probe timed out before the first successful observation" }
+  }
+}

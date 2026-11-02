@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/deployment.completed.v1.schema.json",
+  "title": "DeploymentCompletedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "deployment.completed" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/deployment.v1.schema.json" },
+        { "type": "object", "required": ["status", "completedAt"], "properties": {
+          "status": { "const": "completed" },
+          "completedAt": { "$ref": "../schemas/deployment.v1.schema.json#/properties/completedAt" }
+        } }
+      ] }
+    } }
+  ]
+}

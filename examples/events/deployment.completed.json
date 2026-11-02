@@ -1,0 +1,19 @@
+{
+  "eventId": "event-deployment-completed-001",
+  "eventType": "deployment.completed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:01:00Z",
+  "source": "magos",
+  "correlationId": "deployment-001",
+  "payload": {
+    "deploymentId": "deployment-001",
+    "applicationId": "ice-iq",
+    "version": "2026.11.02",
+    "environment": "home",
+    "initiatedBy": "operator",
+    "startedAt": "2026-11-02T17:00:00Z",
+    "completedAt": "2026-11-02T17:01:00Z",
+    "status": "completed",
+    "rollbackAvailable": false
+  }
+}

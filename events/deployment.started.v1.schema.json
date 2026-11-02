@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/deployment.started.v1.schema.json",
+  "title": "DeploymentStartedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "payload"], "properties": {
+      "eventType": { "const": "deployment.started" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/deployment.v1.schema.json" },
+        { "type": "object", "required": ["status"], "properties": { "status": { "const": "started" } } }
+      ] }
+    } }
+  ]
+}

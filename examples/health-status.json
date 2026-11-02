@@ -1,0 +1,8 @@
+{
+  "serviceId": "archivist",
+  "status": "healthy",
+  "timestamp": "2026-11-02T17:00:00Z",
+  "uptime": 3600,
+  "checks": [{ "name": "storage", "status": "healthy", "details": {} }],
+  "details": {}
+}

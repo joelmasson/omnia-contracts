@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/incident.created.v1.schema.json",
+  "title": "IncidentCreatedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "payload"],
+      "properties": {
+        "eventType": { "const": "incident.created" },
+        "payload": {
+          "allOf": [
+            { "$ref": "../schemas/incident.v1.schema.json" },
+            { "type": "object", "required": ["status"], "properties": { "status": { "const": "open" } } }
+          ]
+        }
+      }
+    }
+  ]
+}
