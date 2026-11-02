@@ -31,9 +31,11 @@ const eventRequirements = {
   "deployment.started": [],
   "deployment.completed": ["completedAt"],
   "deployment.failed": ["completedAt"],
-  "backup.started": [],
-  "backup.completed": ["completedAt", "sizeBytes", "checksum"],
-  "backup.failed": ["completedAt"],
+  "backup.started": ["verificationStatus"],
+  "backup.completed": ["completedAt", "sizeBytes", "checksum", "verificationStatus"],
+  "backup.failed": ["failure"],
+  "backup.verified": ["completedAt", "verificationStatus", "verifiedAt", "checksum"],
+  "backup.verification.failed": ["completedAt", "verificationStatus", "failure"],
   "agent.task.started": ["startedAt"],
   "agent.task.completed": ["startedAt", "completedAt", "result"],
   "agent.task.failed": ["completedAt", "error"],
@@ -50,7 +52,7 @@ interface EventFixture {
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
   assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 6);
-  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 15);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 17);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
     assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
@@ -90,11 +92,44 @@ test("every declared event has exactly one fixture and union membership", () => 
     expected.map((name) => `./${name}.v1.schema.json`));
 });
 
+test("event types carry independent semantic versions", () => {
+  const healthChanged = readJson<EventFixture>("examples/events/service.health.changed.json");
+  const serviceUnavailable = readJson<EventFixture>("examples/events/service.unavailable.json");
+  assert.equal(healthChanged.eventVersion, "1.1.0");
+  assert.equal(serviceUnavailable.eventVersion, "1.0.0");
+  assert.ok(eventSchema.safeParse(healthChanged).success);
+  assert.ok(eventSchema.safeParse(serviceUnavailable).success);
+});
+
+test("the shared event envelope accepts only valid semantic version strings", () => {
+  const validate = ajv.getSchema(schemaId("events/envelope.v1.schema.json"))!;
+  const envelope = {
+    eventId: "event-version-check",
+    eventType: "example.event",
+    eventVersion: "1.0.0",
+    timestamp: "2026-11-02T17:00:00Z",
+    source: "example",
+    correlationId: "correlation-001",
+    payload: {},
+  };
+  for (const eventVersion of ["0.0.0", "1.2.3", "1.2.3-rc.1+build.2"]) {
+    assert.equal(validate({ ...envelope, eventVersion }), true, eventVersion);
+  }
+  for (const eventVersion of ["1.0", "v1.0.0", "01.2.3", "1.0.0-01", "1.0.0+"]) {
+    assert.equal(validate({ ...envelope, eventVersion }), false, eventVersion);
+  }
+});
+
 for (const [name, required] of Object.entries(eventRequirements)) {
   test(`${name}: payload, discriminator, lifecycle and envelope validation`, () => {
     const example = readJson<EventFixture>(`examples/events/${name}.json`);
     const validate = ajv.getSchema(schemaId(`events/${name}.v1.schema.json`))!;
     assert.equal(example.eventType, name);
+    const schemaMajor = example.eventVersion.split(".", 1)[0];
+    assert.ok(
+      readdirSync(resolve(root, "events")).includes(`${name}.v${schemaMajor}.schema.json`),
+      "Event schema filename major must match eventVersion",
+    );
     assert.ok(validate(example), ajv.errorsText(validate.errors));
     assert.deepEqual(eventSchema.parse(example), example);
     for (const key of ["eventId", "eventType", "eventVersion", "timestamp", "source", "correlationId", "payload"]) {
@@ -113,6 +148,10 @@ for (const [name, required] of Object.entries(eventRequirements)) {
       { eventType: "not.supported" },
       { eventVersion: "2.0.0" },
       { eventVersion: 1 },
+      { eventVersion: "1.0" },
+      { eventVersion: "v1.0.0" },
+      { eventVersion: "01.0.0" },
+      { eventVersion: "1.0.0-01" },
       { timestamp: "not-a-date" },
       { timestamp: "2026-11-02T17:00:00" },
       { correlationId: "" },
@@ -164,8 +203,84 @@ test("numeric, format, enum, JSON and error boundaries", () => {
     assert.equal(backupSchema.safeParse({ ...backup, sizeBytes }).success, false);
   }
   assert.equal(backupSchema.safeParse({ ...backup, encrypted: "true" }).success, false);
+  for (const encryptionAlgorithm of ["AES-256-GCM", "ChaCha20-Poly1305"]) {
+    assert.equal(backupSchema.safeParse({ ...backup, encryptionAlgorithm }).success, true);
+  }
+  assert.equal(backupSchema.safeParse({ ...backup, encryptionAlgorithm: "AES-256-CBC" }).success, false);
+  const encryptedWithoutAlgorithm = { ...backup };
+  delete encryptedWithoutAlgorithm.encryptionAlgorithm;
+  assert.equal(backupSchema.safeParse(encryptedWithoutAlgorithm).success, false);
+  const failedWithoutStructuredFailure = { ...backup, status: "failed", verificationStatus: "not_requested" };
+  assert.equal(backupSchema.safeParse(failedWithoutStructuredFailure).success, false);
+  const failedButStillPending = {
+    ...backup,
+    status: "failed",
+    failure: { code: "FAILED", message: "Failed", reference: "failure-001" },
+  };
+  assert.equal(backupSchema.safeParse(failedButStillPending).success, false);
+  const verifiedWithoutChecksum = {
+    ...backup,
+    status: "completed",
+    verificationStatus: "verified",
+    completedAt: "2026-11-02T17:01:00Z",
+    verifiedAt: "2026-11-02T17:02:00Z",
+  };
+  assert.equal(backupSchema.safeParse(verifiedWithoutChecksum).success, false);
   assert.equal(backupSchema.safeParse({ ...backup, checksum: "not-a-digest" }).success, false);
   assert.equal(backupSchema.safeParse({ ...backup, verificationStatus: "ok" }).success, false);
+
+  const completedBackup = readJson<EventFixture>("examples/events/backup.completed.json");
+  assert.equal(completedBackup.payload.verificationStatus, "pending");
+  assert.equal(eventSchema.safeParse(completedBackup).success, true, "Completion does not imply verification");
+  const withoutCompletedAt = structuredClone(completedBackup);
+  delete withoutCompletedAt.payload.completedAt;
+  assert.equal(eventSchema.safeParse(withoutCompletedAt).success, false);
+  assert.equal(eventSchema.safeParse({
+    ...completedBackup,
+    payload: { ...completedBackup.payload, verificationStatus: "verified" },
+  }).success, false, "Completion cannot claim verification");
+
+  const verifiedBackup = readJson<EventFixture>("examples/events/backup.verified.json");
+  assert.equal(eventSchema.safeParse(verifiedBackup).success, true);
+  assert.equal(eventSchema.safeParse({
+    ...verifiedBackup,
+    payload: { ...verifiedBackup.payload, status: "failed" },
+  }).success, false, "A verified event must describe a completed backup");
+  const withoutVerifiedAt = structuredClone(verifiedBackup);
+  delete withoutVerifiedAt.payload.verifiedAt;
+  assert.equal(eventSchema.safeParse(withoutVerifiedAt).success, false);
+
+  const verificationFailure = readJson<EventFixture>("examples/events/backup.verification.failed.json");
+  assert.equal(eventSchema.safeParse(verificationFailure).success, true);
+  const failureWithoutReference = structuredClone(verificationFailure);
+  delete (failureWithoutReference.payload.failure as Record<string, unknown>).reference;
+  assert.equal(eventSchema.safeParse(failureWithoutReference).success, false);
+  assert.equal(eventSchema.safeParse({
+    ...verificationFailure,
+    payload: { ...verificationFailure.payload, status: "failed" },
+  }).success, false, "Verification failure does not change backup completion state");
+
+  const failedBackup = readJson<EventFixture>("examples/events/backup.failed.json");
+  assert.equal("completedAt" in failedBackup.payload, false);
+  assert.equal("sizeBytes" in failedBackup.payload, false);
+  assert.equal("checksum" in failedBackup.payload, false);
+  assert.equal(failedBackup.payload.status, "failed");
+  assert.equal(failedBackup.payload.verificationStatus, "not_requested");
+  assert.equal(eventSchema.safeParse(failedBackup).success, true, "Failed backup needs no completed artifact");
+  const failedWithoutStartedAt = structuredClone(failedBackup);
+  delete failedWithoutStartedAt.payload.startedAt;
+  assert.equal(eventSchema.safeParse(failedWithoutStartedAt).success, false);
+  const failedWithoutReference = structuredClone(failedBackup);
+  delete (failedWithoutReference.payload.failure as Record<string, unknown>).reference;
+  assert.equal(eventSchema.safeParse(failedWithoutReference).success, false);
+
+  assert.equal(healthStatusSchema.safeParse({
+    ...health,
+    status: "healthy",
+    timestamp: "2020-01-01T00:00:00Z",
+    lastSuccessfulCheck: "2019-12-31T23:59:00Z",
+  }).success, true, "A stale healthy report remains structurally valid; freshness is consumer policy");
+  assert.equal(healthStatusSchema.safeParse({ ...health, lastSuccessfulCheck: null }).success, true);
 
   const task = readJson<Record<string, unknown>>("examples/agent-task.json");
   assert.equal(agentTaskSchema.safeParse({ ...task, priority: 1 }).success, false);

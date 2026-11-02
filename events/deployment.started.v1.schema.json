@@ -4,8 +4,9 @@
   "title": "DeploymentStartedEvent",
   "allOf": [
     { "$ref": "./envelope.v1.schema.json" },
-    { "type": "object", "required": ["eventType", "payload"], "properties": {
+    { "type": "object", "required": ["eventType", "eventVersion", "payload"], "properties": {
       "eventType": { "const": "deployment.started" },
+      "eventVersion": { "const": "1.0.0" },
       "payload": { "allOf": [
         { "$ref": "../schemas/deployment.v1.schema.json" },
         { "type": "object", "required": ["status"], "properties": { "status": { "const": "started" } } }

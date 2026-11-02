@@ -2,19 +2,88 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.omnia.dev/schemas/backup.v1.schema.json",
   "title": "Backup",
+  "description": "Never include credentials, encryption keys or other secrets in this object or its extension fields.",
   "type": "object",
   "required": ["backupId", "source", "destination", "startedAt", "encrypted", "verificationStatus", "status"],
   "properties": {
     "backupId": { "type": "string", "minLength": 1 },
-    "source": { "type": "string", "minLength": 1, "description": "Logical source reference, never credentials." },
-    "destination": { "type": "string", "minLength": 1, "description": "Logical destination reference, never credentials." },
+    "source": { "type": "string", "minLength": 1, "description": "Logical source reference; must not contain credentials." },
+    "destination": { "type": "string", "minLength": 1, "description": "Logical destination reference; must not contain credentials." },
+    "backupType": { "type": "string", "enum": ["full", "incremental", "differential", "snapshot"], "description": "The strategy used to create this backup." },
     "startedAt": { "type": "string", "format": "date-time" },
     "completedAt": { "type": "string", "format": "date-time" },
     "sizeBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
     "encrypted": { "type": "boolean" },
+    "encryptionAlgorithm": { "type": "string", "enum": ["AES-256-GCM", "ChaCha20-Poly1305"], "description": "Algorithm name only; never include keys, credentials or other encryption secrets." },
     "checksum": { "type": "string", "pattern": "^[a-z0-9-]+:[A-Fa-f0-9]+$", "description": "Algorithm-prefixed hexadecimal digest, e.g. sha256:abcd...; algorithm policy belongs to ARCHIVIST." },
+    "verifiedAt": { "type": "string", "format": "date-time" },
     "verificationStatus": { "type": "string", "enum": ["pending", "verified", "failed", "not_requested"] },
-    "status": { "type": "string", "enum": ["started", "completed", "failed"] }
+    "status": { "type": "string", "enum": ["started", "completed", "failed"] },
+    "failure": {
+      "type": "object",
+      "required": ["code", "message", "reference"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1, "description": "Safe diagnostic text; must not contain credentials or encryption secrets." },
+        "reference": { "type": "string", "minLength": 1, "description": "Opaque, non-secret identifier for the failure record." },
+        "retryable": { "type": "boolean" },
+        "details": {
+          "type": "object",
+          "description": "Producers must sanitize details and exclude credentials, tokens, encryption keys and all other secrets.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "completed" } }, "required": ["status"] },
+      "then": {
+        "required": ["completedAt"],
+        "properties": { "completedAt": { "$ref": "#/properties/completedAt" } }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+      "then": {
+        "required": ["failure", "verificationStatus"],
+        "properties": {
+          "failure": { "$ref": "#/properties/failure" },
+          "verificationStatus": { "const": "not_requested" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verificationStatus": { "const": "verified" } }, "required": ["verificationStatus"] },
+      "then": {
+        "required": ["status", "completedAt", "verifiedAt", "checksum"],
+        "properties": {
+          "status": { "const": "completed" },
+          "completedAt": { "$ref": "#/properties/completedAt" },
+          "verifiedAt": { "$ref": "#/properties/verifiedAt" },
+          "checksum": { "$ref": "#/properties/checksum" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verificationStatus": { "const": "failed" } }, "required": ["verificationStatus"] },
+      "then": {
+        "required": ["status", "completedAt", "failure"],
+        "properties": {
+          "status": { "const": "completed" },
+          "completedAt": { "$ref": "#/properties/completedAt" },
+          "failure": { "$ref": "#/properties/failure" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "encrypted": { "const": true } }, "required": ["encrypted"] },
+      "then": {
+        "required": ["encryptionAlgorithm"],
+        "properties": { "encryptionAlgorithm": { "$ref": "#/properties/encryptionAlgorithm" } }
+      }
+    }
+  ],
   "additionalProperties": true
 }

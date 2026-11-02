@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/backup.verified.v1.schema.json",
+  "title": "BackupVerifiedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "eventVersion", "payload"], "properties": {
+      "eventType": { "const": "backup.verified" },
+      "eventVersion": { "const": "1.0.0" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/backup.v1.schema.json" },
+        { "type": "object", "required": ["status", "completedAt", "verificationStatus", "verifiedAt", "checksum"], "properties": {
+          "status": { "const": "completed" },
+          "verificationStatus": { "const": "verified" },
+          "completedAt": { "$ref": "../schemas/backup.v1.schema.json#/properties/completedAt" },
+          "verifiedAt": { "$ref": "../schemas/backup.v1.schema.json#/properties/verifiedAt" },
+          "checksum": { "$ref": "../schemas/backup.v1.schema.json#/properties/checksum" }
+        } }
+      ] }
+    } }
+  ]
+}

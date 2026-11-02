@@ -6,9 +6,10 @@
     { "$ref": "./envelope.v1.schema.json" },
     {
       "type": "object",
-      "required": ["eventType", "payload"],
+      "required": ["eventType", "eventVersion", "payload"],
       "properties": {
         "eventType": { "const": "incident.resolved" },
+        "eventVersion": { "const": "1.0.0" },
         "payload": {
           "allOf": [
             { "$ref": "../schemas/incident.v1.schema.json" },

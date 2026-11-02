@@ -4,12 +4,14 @@
   "title": "BackupCompletedEvent",
   "allOf": [
     { "$ref": "./envelope.v1.schema.json" },
-    { "type": "object", "required": ["eventType", "payload"], "properties": {
+    { "type": "object", "required": ["eventType", "eventVersion", "payload"], "properties": {
       "eventType": { "const": "backup.completed" },
+      "eventVersion": { "const": "1.1.0" },
       "payload": { "allOf": [
         { "$ref": "../schemas/backup.v1.schema.json" },
-        { "type": "object", "required": ["status", "completedAt", "sizeBytes", "checksum"], "properties": {
+        { "type": "object", "required": ["status", "completedAt", "sizeBytes", "checksum", "verificationStatus"], "properties": {
           "status": { "const": "completed" },
+          "verificationStatus": { "enum": ["pending", "not_requested"] },
           "completedAt": { "$ref": "../schemas/backup.v1.schema.json#/properties/completedAt" },
           "sizeBytes": { "$ref": "../schemas/backup.v1.schema.json#/properties/sizeBytes" },
           "checksum": { "$ref": "../schemas/backup.v1.schema.json#/properties/checksum" }

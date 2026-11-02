@@ -13,6 +13,8 @@
     { "$ref": "./backup.started.v1.schema.json" },
     { "$ref": "./backup.completed.v1.schema.json" },
     { "$ref": "./backup.failed.v1.schema.json" },
+    { "$ref": "./backup.verified.v1.schema.json" },
+    { "$ref": "./backup.verification.failed.v1.schema.json" },
     { "$ref": "./agent.task.started.v1.schema.json" },
     { "$ref": "./agent.task.completed.v1.schema.json" },
     { "$ref": "./agent.task.failed.v1.schema.json" }

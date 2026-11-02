@@ -4,13 +4,15 @@
   "title": "BackupFailedEvent",
   "allOf": [
     { "$ref": "./envelope.v1.schema.json" },
-    { "type": "object", "required": ["eventType", "payload"], "properties": {
+    { "type": "object", "required": ["eventType", "eventVersion", "payload"], "properties": {
       "eventType": { "const": "backup.failed" },
+      "eventVersion": { "const": "1.0.0" },
       "payload": { "allOf": [
         { "$ref": "../schemas/backup.v1.schema.json" },
-        { "type": "object", "required": ["status", "completedAt"], "properties": {
+        { "type": "object", "required": ["status", "verificationStatus", "failure"], "properties": {
           "status": { "const": "failed" },
-          "completedAt": { "$ref": "../schemas/backup.v1.schema.json#/properties/completedAt" }
+          "verificationStatus": { "const": "not_requested" },
+          "failure": { "$ref": "../schemas/backup.v1.schema.json#/properties/failure" }
         } }
       ] }
     } }

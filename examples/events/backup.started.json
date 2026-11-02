@@ -9,8 +9,10 @@
     "backupId": "backup-001",
     "source": "ice-iq/database",
     "destination": "home-backup-volume",
+    "backupType": "full",
     "startedAt": "2026-11-02T17:00:00Z",
     "encrypted": true,
+    "encryptionAlgorithm": "AES-256-GCM",
     "verificationStatus": "pending",
     "status": "started"
   }

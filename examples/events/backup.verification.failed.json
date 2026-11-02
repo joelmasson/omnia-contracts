@@ -1,0 +1,28 @@
+{
+  "eventId": "event-backup-verification-failed-001",
+  "eventType": "backup.verification.failed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-02T17:02:00Z",
+  "source": "archivist",
+  "correlationId": "backup-001",
+  "payload": {
+    "backupId": "backup-001",
+    "source": "ice-iq/database",
+    "destination": "home-backup-volume",
+    "backupType": "full",
+    "startedAt": "2026-11-02T17:00:00Z",
+    "completedAt": "2026-11-02T17:01:00Z",
+    "sizeBytes": 1048576,
+    "encrypted": true,
+    "encryptionAlgorithm": "AES-256-GCM",
+    "checksum": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "verificationStatus": "failed",
+    "status": "completed",
+    "failure": {
+      "code": "CHECKSUM_MISMATCH",
+      "message": "The stored data did not match its checksum.",
+      "reference": "verification-failure-001",
+      "retryable": false
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "eventId": "event-health-001",
   "eventType": "service.health.changed",
-  "eventVersion": "1.0.0",
+  "eventVersion": "1.1.0",
   "timestamp": "2026-11-02T17:00:00Z",
   "source": "archivist",
   "correlationId": "health-001",

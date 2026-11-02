@@ -6,9 +6,10 @@
     { "$ref": "./envelope.v1.schema.json" },
     {
       "type": "object",
-      "required": ["eventType", "payload"],
+      "required": ["eventType", "eventVersion", "payload"],
       "properties": {
         "eventType": { "const": "service.unavailable" },
+        "eventVersion": { "const": "1.0.0" },
         "payload": {
           "allOf": [
             { "$ref": "../schemas/health-status.v1.schema.json" },

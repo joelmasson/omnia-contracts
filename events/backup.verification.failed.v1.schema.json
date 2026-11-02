@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/backup.verification.failed.v1.schema.json",
+  "title": "BackupVerificationFailedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    { "type": "object", "required": ["eventType", "eventVersion", "payload"], "properties": {
+      "eventType": { "const": "backup.verification.failed" },
+      "eventVersion": { "const": "1.0.0" },
+      "payload": { "allOf": [
+        { "$ref": "../schemas/backup.v1.schema.json" },
+        { "type": "object", "required": ["status", "completedAt", "verificationStatus", "failure"], "properties": {
+          "status": { "const": "completed" },
+          "verificationStatus": { "const": "failed" },
+          "completedAt": { "$ref": "../schemas/backup.v1.schema.json#/properties/completedAt" },
+          "failure": { "$ref": "../schemas/backup.v1.schema.json#/properties/failure" }
+        } }
+      ] }
+    } }
+  ]
+}

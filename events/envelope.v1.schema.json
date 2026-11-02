@@ -7,7 +7,11 @@
   "properties": {
     "eventId": { "type": "string", "minLength": 1 },
     "eventType": { "type": "string", "minLength": 1 },
-    "eventVersion": { "type": "string", "const": "1.0.0" },
+    "eventVersion": {
+      "type": "string",
+      "description": "Semantic version of this event type's wire contract.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+    },
     "timestamp": { "type": "string", "format": "date-time" },
     "source": { "type": "string", "minLength": 1, "description": "Producer service ID; not a destination or routing dependency." },
     "correlationId": { "type": "string", "minLength": 1 },

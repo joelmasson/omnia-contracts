@@ -1,5 +1,15 @@
 import type { z } from "zod";
-import type { AgentTaskCompletedEvent, BackupCompletedEvent, OmniaEvent, ServiceRegistration } from "../typescript/contracts.js";
+import type {
+  AgentTaskCompletedEvent,
+  BackupFailedEvent,
+  BackupCompletedEvent,
+  BackupVerifiedEvent,
+  BackupVerificationFailedEvent,
+  OmniaEvent,
+  ServiceHealthChangedEvent,
+  ServiceRegistration,
+  ServiceUnavailableEvent,
+} from "../typescript/contracts.js";
 import type { eventSchema, serviceRegistrationSchema } from "../typescript/validators.js";
 
 type Assert<T extends true> = T;
@@ -26,6 +36,15 @@ export function narrowEvent(event: OmniaEvent): string | undefined {
 type CompletedPayload = BackupCompletedEvent["payload"];
 type CompletionIsRequired = Assert<Equal<CompletedPayload["completedAt"], string>>;
 type ChecksumIsRequired = Assert<Equal<CompletedPayload["checksum"], string>>;
+type HealthChangedVersion = Assert<Equal<ServiceHealthChangedEvent["eventVersion"], "1.1.0">>;
+type ServiceUnavailableVersion = Assert<Equal<ServiceUnavailableEvent["eventVersion"], "1.0.0">>;
+type BackupVerifiedVersion = Assert<Equal<BackupVerifiedEvent["eventVersion"], "1.0.0">>;
+type BackupFailureReferenceIsRequired = Assert<
+  Equal<BackupFailedEvent["payload"]["failure"]["reference"], string>
+>;
+type VerificationFailureReferenceIsRequired = Assert<
+  Equal<BackupVerificationFailedEvent["payload"]["failure"]["reference"], string>
+>;
 
 export const taskResultShapes: AgentTaskCompletedEvent["payload"]["result"][] = [
   null, true, 42, "summary", [null, 1, { nested: ["value"] }], { summary: "ok" },

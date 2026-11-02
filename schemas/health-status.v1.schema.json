@@ -8,6 +8,7 @@
     "serviceId": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy", "unknown"] },
     "timestamp": { "type": "string", "format": "date-time" },
+    "lastSuccessfulCheck": { "type": ["string", "null"], "format": "date-time", "description": "Time of the last successful health check, or null if none has succeeded." },
     "uptime": { "type": ["number", "null"], "minimum": 0, "description": "Elapsed seconds since service startup, or null when never observed." },
     "checks": {
       "type": "array",

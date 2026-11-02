@@ -10,7 +10,7 @@ The repository is initially empty of application code by design.
 | Location | Contents |
 | --- | --- |
 | [schemas/](./schemas/) | Six domain contracts, major version 1 |
-| [events/](./events/) | Envelope, thirteen event contracts and a supported-event union |
+| [events/](./events/) | Envelope, fifteen event contracts and a supported-event union |
 | [openapi/](./openapi/) | Optional `GET /health` and `POST /events` API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
 | [examples/](./examples/) | One JSON fixture per resource/event and a runnable consumer |
@@ -86,10 +86,27 @@ if (event.eventType === "backup.completed") {
 - Registration status describes process lifecycle: `starting`, `running`,
   `stopping`, `stopped`, `unknown`. Health is independently `healthy`, `degraded`,
   `unhealthy` or `unknown`. Checks are named health observations.
+- Health `timestamp` identifies when the snapshot was produced;
+  `lastSuccessfulCheck` is the latest successful check time or `null` when no
+  check has succeeded. If absent, the producer has not reported it. It is
+  optional for compatibility with older producers.
+  Consumers must apply their own freshness threshold to `timestamp` (and, where
+  relevant, `lastSuccessfulCheck`): a stale report, even one whose status is
+  `healthy`, does not establish current service health.
 - Incident severity: `critical`, `high`, `medium`, `low`, `info`; incident status:
   `open`, `acknowledged`, `resolved`. Deployment/backup status: `started`,
-  `completed`, `failed`. Backup verification: `pending`, `verified`, `failed`,
-  `not_requested`. Completion and verification are separate outcomes.
+  `completed`, `failed`. Backup type is `full` (all selected data),
+  `incremental` (changes since the preceding backup), `differential` (changes
+  since the latest full backup) or `snapshot` (a point-in-time image). Encryption
+  algorithms are `AES-256-GCM` (authenticated AES-GCM) or `ChaCha20-Poly1305`
+  (authenticated stream encryption). `encryptionAlgorithm` names the algorithm
+  only; backup metadata and failure information must never contain credentials,
+  keys or other encryption secrets. Backup verification is independently
+  `pending`, `verified`, `failed` or `not_requested`; completion does not imply
+  verification. A verified backup requires `verifiedAt` and a checksum. A
+  verification failure leaves the backup `completed` and records structured
+  failure data including a non-secret failure reference; a backup operation
+  failure has `status: "failed"`.
 - Task status: `queued`, `started`, `completed`, `failed`, `cancelled`; priority:
   `low`, `normal`, `high`, `critical`. Results may be any JSON value, including
   explicit `null`; errors contain `code`, `message` and optional `details`.
@@ -104,31 +121,57 @@ if (event.eventType === "backup.completed") {
 ## Events
 
 Each event requires `eventId`, `eventType`, `eventVersion`, `timestamp`, `source`,
-`correlationId` and `payload`. Set `eventVersion` to **`1.0.0`** for the initial
-wire format, independently of the repository's draft release `0.1.0`.
+`correlationId` and `payload`. `eventVersion` is a strict SemVer 2.0.0 value
+defined as a constant by each event schema, independently versioned per
+`eventType`; the shared envelope accepts any valid semantic version. The `vN`
+event schema filename suffix and `$id` follow the major component of that
+event's wire version. Current event versions are shown in the table; additive
+changes may use a compatible minor version, while incompatible wire changes
+require a new major schema and a migration window.
 `correlationId` is a producer-created workflow identifier propagated across
 related operations; `eventId` identifies one immutable event and is reused
 when retrying that event.
 
-| Event | Payload | Additional requirements |
-| --- | --- | --- |
-| `service.health.changed` | HealthStatus | Any defined health status |
-| `service.unavailable` | HealthStatus | `unhealthy` or `unknown` |
-| `incident.created` | Incident | `open` |
-| `incident.resolved` | Incident | `resolved`, `resolvedAt` |
-| `deployment.started` | Deployment | `started` |
-| `deployment.completed` | Deployment | `completed`, `completedAt` |
-| `deployment.failed` | Deployment | `failed`, `completedAt` |
-| `backup.started` | Backup | `started` |
-| `backup.completed` | Backup | `completed`, `completedAt`, `sizeBytes`, `checksum` |
-| `backup.failed` | Backup | `failed`, `completedAt` |
-| `agent.task.started` | AgentTask | `started`, `startedAt` |
-| `agent.task.completed` | AgentTask | `completed`, `startedAt`, `completedAt`, `result` |
-| `agent.task.failed` | AgentTask | `failed`, `completedAt`, `error`; may fail before starting |
+| Event | Version | Payload | Additional requirements |
+| --- | --- | --- | --- |
+| `service.health.changed` | `1.1.0` | HealthStatus | Any defined health status |
+| `service.unavailable` | `1.0.0` | HealthStatus | `unhealthy` or `unknown` |
+| `incident.created` | `1.0.0` | Incident | `open` |
+| `incident.resolved` | `1.0.0` | Incident | `resolved`, `resolvedAt` |
+| `deployment.started` | `1.0.0` | Deployment | `started` |
+| `deployment.completed` | `1.0.0` | Deployment | `completed`, `completedAt` |
+| `deployment.failed` | `1.0.0` | Deployment | `failed`, `completedAt` |
+| `backup.started` | `1.0.0` | Backup | `started`, verification `pending` |
+| `backup.completed` | `1.1.0` | Backup | `completed`, `completedAt`, `sizeBytes`, `checksum`, verification `pending` or `not_requested` |
+| `backup.failed` | `1.0.0` | Backup | `failed`, `startedAt`, verification `not_requested`, structured failure reference; no completed artifact is implied |
+| `backup.verified` | `1.0.0` | Backup | `completed`, verification `verified`, `verifiedAt`, `checksum` |
+| `backup.verification.failed` | `1.0.0` | Backup | `completed`, verification `failed`, structured failure reference |
+| `agent.task.started` | `1.0.0` | AgentTask | `started`, `startedAt` |
+| `agent.task.completed` | `1.0.0` | AgentTask | `completed`, `startedAt`, `completedAt`, `result` |
+| `agent.task.failed` | `1.0.0` | AgentTask | `failed`, `completedAt`, `error`; may fail before starting |
 
 Unavailable observations use `null` for never-observed uptime, or the last
 observed uptime with an `uptimeObservedAt` detail when stale; do not invent a
 zero uptime.
+
+When verification is requested, the valid backup lifecycle paths are
+`backup.started` → `backup.completed` → `backup.verified` and
+`backup.started` → `backup.completed` → `backup.verification.failed`.
+`backup.started` → `backup.failed` is the operation-failure path.
+`backup.failed` has `status: "failed"`, requires `startedAt`, structured failure
+information and verification status `not_requested`; it does not require
+`completedAt` and does not imply a completed artifact. Backup completion
+records that the operation finished; it does not assert verification.
+`backup.completed` may use verification status `pending` or `not_requested`.
+When verification is requested, a later `backup.verified` records success,
+while `backup.verification.failed` records an unsuccessful integrity check
+without changing the backup operation's `completed` status. If verification is
+`not_requested`, `backup.completed` is terminal and no verification event is
+expected.
+
+JSON Schema validates each event independently; it cannot establish event
+ordering or validate transitions across a history. ARCHIVIST must correlate
+events by backup ID and enforce these lifecycle transitions across events.
 
 Events can be sent over direct HTTP; no broker is required or introduced.
 The OpenAPI union rejects unknown event names/versions with `422`. A consumer
@@ -174,8 +217,13 @@ See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md).
   emit data an old consumer rejects. Do not assume it is automatically compatible.
 - New event kinds require explicit consumer opt-in; old subscriptions need not
   accept them. Each event's exact `eventVersion` is negotiated by adoption.
-  When changing a wire event, create an explicit new version/schema and preserve
-  supported older variants; do not silently change the `1.0.0` discriminator.
+  Each event schema pins its own `eventVersion` constant. Consumers must reject
+  unsupported event major versions rather than guessing, downgrading, or
+  interpreting an unknown major as compatible. When changing a wire
+  event, create an explicit new version/schema and preserve supported older
+  variants; do not silently change that event's discriminator. The shared
+  envelope only checks that the version is valid SemVer. Consumers may receive
+  different versions for different event types.
 - PRs must state producer/consumer impact, compatibility classification and any
   migration plan. Update canonical schemas first, examples and OpenAPI as needed,
   regenerate types, and add positive and negative tests. Obtain review from
