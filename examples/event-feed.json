@@ -1,0 +1,26 @@
+{
+  "events": [
+    {
+      "feedPosition": 126,
+      "event": {
+        "eventId": "event-job-progress-001",
+        "eventType": "job.progress",
+        "eventVersion": "1.0.0",
+        "timestamp": "2026-11-11T18:00:00Z",
+        "source": "ice-iq",
+        "correlationId": "refresh-123",
+        "payload": {
+          "jobKey": "nhl-refresh",
+          "executionId": "refresh-123",
+          "sequence": 2,
+          "stage": "nhle",
+          "stageIndex": 1,
+          "stageCount": 13,
+          "status": "started",
+          "recordsProcessed": 0
+        }
+      }
+    }
+  ],
+  "hasMore": true
+}

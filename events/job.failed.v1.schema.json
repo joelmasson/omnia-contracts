@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/job.failed.v1.schema.json",
+  "title": "JobFailedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "eventVersion", "payload"],
+      "properties": {
+        "eventType": { "const": "job.failed" },
+        "eventVersion": { "const": "1.0.0" },
+        "payload": {
+          "type": "object",
+          "required": ["jobKey", "executionId", "sequence", "status", "failureCode"],
+          "properties": {
+            "jobKey": { "type": "string", "minLength": 1 },
+            "executionId": { "type": "string", "minLength": 1 },
+            "sequence": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
+            },
+            "status": { "const": "failed" },
+            "failureCode": {
+              "type": "string",
+              "enum": ["incomplete", "interrupted", "required_source_failed"]
+            },
+            "message": { "type": "string", "maxLength": 500 },
+            "failedStage": {
+              "type": "string",
+              "enum": [
+                "nhle",
+                "moneypuck",
+                "nst",
+                "skater-stats",
+                "goalie-stats",
+                "goalie-starts",
+                "goalie-storage",
+                "player-storage",
+                "standings",
+                "schedule",
+                "goalie-coverage",
+                "advanced-sources",
+                "advanced-recompute"
+              ]
+            },
+            "recordsProcessed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Stage-level count accumulated for failedStage when the execution failed; not the execution-wide total. Supply only when failedStage is supplied, and omit if the stage or count cannot be reliably identified."
+            },
+            "totalRecordsProcessed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Aggregate execution-level count processed up to failure; not a count of unique records or entities unless the producer explicitly guarantees that property. Omit if the aggregate cannot be reliably calculated."
+            },
+            "durationMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "dependentRequired": {
+            "recordsProcessed": ["failedStage"]
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

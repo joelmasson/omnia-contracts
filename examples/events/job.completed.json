@@ -1,0 +1,18 @@
+{
+  "eventId": "event-job-completed-001",
+  "eventType": "job.completed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-11T18:05:00Z",
+  "source": "ice-iq",
+  "correlationId": "refresh-123",
+  "payload": {
+    "jobKey": "nhl-refresh",
+    "executionId": "refresh-123",
+    "sequence": 4,
+    "status": "complete",
+    "stagesCompleted": 13,
+    "stagesFailed": 0,
+    "totalRecordsProcessed": 1250,
+    "durationMs": 300000
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/job.warning.v1.schema.json",
+  "title": "JobWarningEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "eventVersion", "payload"],
+      "properties": {
+        "eventType": { "const": "job.warning" },
+        "eventVersion": { "const": "1.0.0" },
+        "payload": {
+          "type": "object",
+          "required": ["jobKey", "executionId", "sequence", "stage", "warningCode"],
+          "properties": {
+            "jobKey": { "type": "string", "minLength": 1 },
+            "executionId": { "type": "string", "minLength": 1 },
+            "sequence": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 9007199254740991
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "nhle",
+                "moneypuck",
+                "nst",
+                "skater-stats",
+                "goalie-stats",
+                "goalie-starts",
+                "goalie-storage",
+                "player-storage",
+                "standings",
+                "schedule",
+                "goalie-coverage",
+                "advanced-sources",
+                "advanced-recompute",
+                "post-processing"
+              ]
+            },
+            "warningCode": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Stable producer-owned code, not a shared enum. Includes outbox_write_failed and event_history_incomplete."
+            },
+            "message": { "type": "string", "maxLength": 500 }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

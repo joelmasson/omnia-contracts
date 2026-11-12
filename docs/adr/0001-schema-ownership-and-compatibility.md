@@ -5,15 +5,23 @@ versioned JSON Schema 2020-12 documents consumed from pinned, offline snapshots,
 not a shared runtime, writable database, central registry or message broker.
 Domain owners approve their payloads (NOOSPHERE: registration/health; MAGOS:
 deployment; ARCHIVIST: backup; SERVITOR: agent tasks; reporting services:
-incidents), while platform maintainers and affected consumers review envelope
-and compatibility changes. NOOSPHERE must remain operational without MAGOS.
+incidents), while platform maintainers own envelope, compatibility, and
+OpenAPI conventions and review shared changes with affected consumers.
+NOOSPHERE must remain operational without MAGOS.
 
 OpenAPI 3.1 references canonical schemas, TypeScript types are generated, and
 the Zod example delegates to canonical JSON Schema validation rather than
 maintaining an independent model. This trades the convenience of a shared SDK
 for independent service runtimes and avoids validation drift. Object schemas
-accept unknown fields to enable optional additive evolution; incompatible
-changes require new major identifiers and a producer/consumer migration window.
+accept unknown fields to enable optional additive evolution. The approved
+future generic job payloads are an explicit strict-validation exception:
+unknown payload properties are rejected, while the common envelope and
+existing schemas remain unchanged. Additive job payload changes therefore need
+explicit versioning and compatibility review. The schemas are not implemented
+by this decision. See the
+[OMNIA architecture decision register](https://github.com/joelmasson/omnia-magos/blob/main/docs/architecture/operational-data-model.md).
+Incompatible changes require new major identifiers and a producer/consumer
+migration window.
 Repository release versions and exact event wire versions are independent.
 Schema identifiers are logical offline names, not runtime network dependencies.
 
@@ -36,4 +44,5 @@ JSON Schema validates individual events only; ARCHIVIST owns enforcement of
 transitions across event history. Consumers reject unsupported event major
 versions. Health snapshots include an optional nullable `lastSuccessfulCheck`;
 consumers apply their own freshness threshold to the report timestamp and must
-not treat a reported `healthy` value as proof of current health.
+not treat a reported `healthy` value as proof of current health. Stale health
+observations must remain distinguishable from current observations.

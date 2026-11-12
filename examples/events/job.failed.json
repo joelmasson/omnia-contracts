@@ -1,0 +1,19 @@
+{
+  "eventId": "event-job-failed-001",
+  "eventType": "job.failed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-11T18:05:00Z",
+  "source": "ice-iq",
+  "correlationId": "refresh-124",
+  "payload": {
+    "jobKey": "nhl-refresh",
+    "executionId": "refresh-124",
+    "sequence": 2,
+    "status": "failed",
+    "failureCode": "required_source_failed",
+    "failedStage": "nhle",
+    "recordsProcessed": 12,
+    "totalRecordsProcessed": 127,
+    "durationMs": 30000
+  }
+}

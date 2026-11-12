@@ -9,6 +9,9 @@ const resourceNames = [
   "deployment",
   "backup",
   "agent-task",
+  "event-feed-query",
+  "event-feed",
+  "event-feed-acknowledgement",
 ] as const;
 const properties = Object.fromEntries(
   resourceNames.map((name) => [

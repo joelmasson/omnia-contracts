@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/job.started.v1.schema.json",
+  "title": "JobStartedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "eventVersion", "payload"],
+      "properties": {
+        "eventType": { "const": "job.started" },
+        "eventVersion": { "const": "1.0.0" },
+        "payload": {
+          "type": "object",
+          "required": ["jobKey", "executionId", "sequence", "trigger"],
+          "properties": {
+            "jobKey": { "type": "string", "minLength": 1 },
+            "executionId": { "type": "string", "minLength": 1 },
+            "sequence": {
+              "type": "integer",
+              "const": 1,
+              "maximum": 9007199254740991,
+              "description": "Exactly 1; job.started is the first event in an execution."
+            },
+            "trigger": {
+              "type": "string",
+              "enum": ["cron", "startup", "manual_api", "api_fallback", "dfhl_notifications"]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

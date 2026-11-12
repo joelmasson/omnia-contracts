@@ -17,6 +17,11 @@
     { "$ref": "./backup.verification.failed.v1.schema.json" },
     { "$ref": "./agent.task.started.v1.schema.json" },
     { "$ref": "./agent.task.completed.v1.schema.json" },
-    { "$ref": "./agent.task.failed.v1.schema.json" }
+    { "$ref": "./agent.task.failed.v1.schema.json" },
+    { "$ref": "./job.started.v1.schema.json" },
+    { "$ref": "./job.progress.v1.schema.json" },
+    { "$ref": "./job.warning.v1.schema.json" },
+    { "$ref": "./job.completed.v1.schema.json" },
+    { "$ref": "./job.failed.v1.schema.json" }
   ]
 }
