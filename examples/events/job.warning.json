@@ -1,0 +1,16 @@
+{
+  "eventId": "event-job-warning-001",
+  "eventType": "job.warning",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-11T18:00:12Z",
+  "source": "ice-iq",
+  "correlationId": "refresh-123",
+  "payload": {
+    "jobKey": "nhl-refresh",
+    "executionId": "refresh-123",
+    "sequence": 3,
+    "stage": "post-processing",
+    "warningCode": "outbox_write_failed",
+    "message": "A progress event could not be persisted."
+  }
+}

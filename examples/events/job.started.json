@@ -1,0 +1,14 @@
+{
+  "eventId": "event-job-started-001",
+  "eventType": "job.started",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-11T18:00:00Z",
+  "source": "ice-iq",
+  "correlationId": "refresh-123",
+  "payload": {
+    "jobKey": "nhl-refresh",
+    "executionId": "refresh-123",
+    "sequence": 1,
+    "trigger": "manual_api"
+  }
+}

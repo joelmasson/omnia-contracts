@@ -37,6 +37,9 @@ export type Backup = {
   failure?: Failure;
   [k: string]: unknown;
 };
+/**
+ * Serialized event object maximum is 16 KiB measured in UTF-8 bytes.
+ */
 export type OmniaEvent =
   | ServiceHealthChangedEvent
   | ServiceUnavailableEvent
@@ -52,7 +55,12 @@ export type OmniaEvent =
   | BackupVerificationFailedEvent
   | AgentTaskStartedEvent
   | AgentTaskCompletedEvent
-  | AgentTaskFailedEvent;
+  | AgentTaskFailedEvent
+  | JobStartedEvent
+  | JobProgressEvent
+  | JobWarningEvent
+  | JobCompletedEvent
+  | JobFailedEvent;
 export type ServiceHealthChangedEvent = EventEnvelope & {
   eventType: "service.health.changed";
   eventVersion: "1.1.0";
@@ -225,6 +233,160 @@ export type AgentTaskFailedEvent = EventEnvelope & {
   };
   [k: string]: unknown;
 };
+export type JobStartedEvent = EventEnvelope & {
+  eventType: "job.started";
+  eventVersion: "1.0.0";
+  payload: {
+    jobKey: string;
+    executionId: string;
+    /**
+     * Positive safe integer; sequence 1 is job.started.
+     */
+    sequence: number;
+    trigger: "cron" | "startup" | "manual_api" | "api_fallback" | "dfhl_notifications";
+  };
+  [k: string]: unknown;
+};
+export type JobProgressEvent = EventEnvelope & {
+  eventType: "job.progress";
+  eventVersion: "1.0.0";
+  payload: {
+    jobKey: string;
+    executionId: string;
+    sequence: number;
+    stage:
+      | "nhle"
+      | "moneypuck"
+      | "nst"
+      | "skater-stats"
+      | "goalie-stats"
+      | "goalie-starts"
+      | "goalie-storage"
+      | "player-storage"
+      | "standings"
+      | "schedule"
+      | "goalie-coverage"
+      | "advanced-sources"
+      | "advanced-recompute";
+    /**
+     * Stable stage catalog position, must not exceed stageCount, and does not determine execution order; the first six stages may run concurrently.
+     */
+    stageIndex: number;
+    stageCount: number;
+    status: "started" | "completed";
+    /**
+     * Non-negative safe integer representing the stage total.
+     */
+    recordsProcessed?: number;
+  };
+  [k: string]: unknown;
+};
+export type JobWarningEvent = EventEnvelope & {
+  eventType: "job.warning";
+  eventVersion: "1.0.0";
+  payload: {
+    jobKey: string;
+    executionId: string;
+    sequence: number;
+    stage:
+      | "nhle"
+      | "moneypuck"
+      | "nst"
+      | "skater-stats"
+      | "goalie-stats"
+      | "goalie-starts"
+      | "goalie-storage"
+      | "player-storage"
+      | "standings"
+      | "schedule"
+      | "goalie-coverage"
+      | "advanced-sources"
+      | "advanced-recompute"
+      | "post-processing";
+    /**
+     * Stable producer-owned code, not a shared enum. Includes outbox_write_failed and event_history_incomplete.
+     */
+    warningCode: string;
+    message?: string;
+  };
+  [k: string]: unknown;
+};
+export type JobCompletedEvent = EventEnvelope & {
+  eventType: "job.completed";
+  eventVersion: "1.0.0";
+  /**
+   * The sum of stagesCompleted and stagesFailed must not exceed this execution's stageCount.
+   */
+  payload: {
+    jobKey: string;
+    executionId: string;
+    sequence: number;
+    status: "complete";
+    stagesCompleted: number;
+    stagesFailed: number;
+    totalRecordsProcessed?: number;
+    durationMs?: number;
+  };
+  [k: string]: unknown;
+};
+export type JobFailedEvent = EventEnvelope & {
+  eventType: "job.failed";
+  eventVersion: "1.0.0";
+  payload: {
+    jobKey: string;
+    executionId: string;
+    sequence: number;
+    status: "failed";
+    failureCode: "incomplete" | "interrupted" | "required_source_failed";
+    message?: string;
+    failedStage?:
+      | "nhle"
+      | "moneypuck"
+      | "nst"
+      | "skater-stats"
+      | "goalie-stats"
+      | "goalie-starts"
+      | "goalie-storage"
+      | "player-storage"
+      | "standings"
+      | "schedule"
+      | "goalie-coverage"
+      | "advanced-sources"
+      | "advanced-recompute"
+      | "post-processing";
+    /**
+     * Stage-level count accumulated for failedStage when the execution failed; not the execution-wide total. Supply only when failedStage is supplied, and omit if the stage or count cannot be reliably identified.
+     */
+    recordsProcessed?: number;
+    /**
+     * Aggregate execution-level count processed up to failure; not a count of unique records or entities unless the producer explicitly guarantees that property. Omit if the aggregate cannot be reliably calculated.
+     */
+    totalRecordsProcessed?: number;
+    durationMs?: number;
+  };
+  [k: string]: unknown;
+};
+export type OmniaEvent1 =
+  | ServiceHealthChangedEvent
+  | ServiceUnavailableEvent
+  | IncidentCreatedEvent
+  | IncidentResolvedEvent
+  | DeploymentStartedEvent
+  | DeploymentCompletedEvent
+  | DeploymentFailedEvent
+  | BackupStartedEvent
+  | BackupCompletedEvent
+  | BackupFailedEvent
+  | BackupVerifiedEvent
+  | BackupVerificationFailedEvent
+  | AgentTaskStartedEvent
+  | AgentTaskCompletedEvent
+  | AgentTaskFailedEvent
+  | JobStartedEvent
+  | JobProgressEvent
+  | JobWarningEvent
+  | JobCompletedEvent
+  | JobFailedEvent;
 
 export interface ContractMap {
   serviceRegistration: ServiceRegistration;
@@ -233,7 +395,10 @@ export interface ContractMap {
   deployment: Deployment;
   backup: Backup;
   agentTask: AgentTask;
-  event: OmniaEvent;
+  eventFeedQuery: EventFeedQuery;
+  eventFeed: EventFeed;
+  eventFeedAcknowledgement: EventFeedAcknowledgement;
+  event: OmniaEvent1;
 }
 export interface ServiceRegistration {
   serviceId: string;
@@ -363,6 +528,31 @@ export interface AgentTaskError {
   };
   [k: string]: unknown;
 }
+export interface EventFeedQuery {
+  /**
+   * Last acknowledged global feed position; use 0 for the first request.
+   */
+  after: number;
+  /**
+   * Maximum events to return; defaults to 100 and cannot exceed 100.
+   */
+  limit?: number;
+}
+/**
+ * The serialized response is limited to 2 MiB measured in UTF-8 bytes. An empty feed returns events: [] and hasMore: false.
+ */
+export interface EventFeed {
+  /**
+   * Events are in ascending feedPosition order. A batch contains at most 100 events. Never truncate or silently omit an oversized event.
+   *
+   * @maxItems 100
+   */
+  events: {
+    feedPosition: number;
+    event: OmniaEvent;
+  }[];
+  hasMore: boolean;
+}
 export interface EventEnvelope {
   eventId: string;
   eventType: string;
@@ -380,4 +570,13 @@ export interface EventEnvelope {
     [k: string]: unknown;
   };
   [k: string]: unknown;
+}
+/**
+ * MAGOS acknowledges only positions it has safely accepted contiguously. Acknowledgement never deletes outbox records.
+ */
+export interface EventFeedAcknowledgement {
+  /**
+   * Authenticated forward-only cursor; equal repeats are harmless, lower values do not move it backwards, and it cannot exceed the highest persisted feed position.
+   */
+  highestContiguousFeedPosition: number;
 }

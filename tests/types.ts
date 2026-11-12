@@ -5,6 +5,12 @@ import type {
   BackupCompletedEvent,
   BackupVerifiedEvent,
   BackupVerificationFailedEvent,
+  EventFeed,
+  EventFeedAcknowledgement,
+  EventFeedQuery,
+  JobCompletedEvent,
+  JobProgressEvent,
+  JobStartedEvent,
   OmniaEvent,
   ServiceHealthChangedEvent,
   ServiceRegistration,
@@ -45,7 +51,15 @@ type BackupFailureReferenceIsRequired = Assert<
 type VerificationFailureReferenceIsRequired = Assert<
   Equal<BackupVerificationFailedEvent["payload"]["failure"]["reference"], string>
 >;
+type JobEventVersion = Assert<Equal<JobStartedEvent["eventVersion"], "1.0.0">>;
+type JobCompletedStatus = Assert<Equal<JobCompletedEvent["payload"]["status"], "complete">>;
+type FeedPositionType = Assert<Equal<EventFeed["events"][number]["feedPosition"], number>>;
 
 export const taskResultShapes: AgentTaskCompletedEvent["payload"]["result"][] = [
   null, true, 42, "summary", [null, 1, { nested: ["value"] }], { summary: "ok" },
+];
+export const jobProgressStages: JobProgressEvent["payload"]["stage"][] = ["nhle", "advanced-recompute"];
+export const eventFeedQueries: EventFeedQuery[] = [{ after: 0 }, { after: 126, limit: 100 }];
+export const eventFeedAcknowledgements: EventFeedAcknowledgement[] = [
+  { highestContiguousFeedPosition: 126 },
 ];

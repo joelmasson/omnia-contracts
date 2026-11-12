@@ -52,6 +52,65 @@
           "503": { "$ref": "#/components/responses/Unavailable" }
         }
       }
+    },
+    "/api/ops/v1/events": {
+      "get": {
+        "operationId": "getOpsEvents",
+        "summary": "Read the Ice IQ event feed",
+        "description": "Returns events in ascending feedPosition order. The first request uses after=0. A response contains at most 100 events; each serialized event is limited to 16 KiB and the serialized response to 2 MiB, measured in UTF-8 bytes. Never truncate or silently omit an oversized event. An empty feed returns 200 with events: [] and hasMore: false. A future after cursor is invalid.",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": true,
+            "description": "Last acknowledged global feed position. Must not be negative, fractional, unsafe, or greater than the highest persisted position.",
+            "schema": { "$ref": "../schemas/event-feed-query.v1.schema.json#/properties/after" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Positive integer, defaults to 100, maximum 100.",
+            "schema": { "$ref": "../schemas/event-feed-query.v1.schema.json#/properties/limit" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed page, including an empty events array and hasMore=false when the feed is empty.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "../schemas/event-feed.v1.schema.json" },
+                "examples": {
+                  "page": { "externalValue": "../examples/event-feed.json" },
+                  "empty": { "externalValue": "../examples/event-feed-empty.json" }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid after cursor or limit. No error response body is defined." }
+        }
+      }
+    },
+    "/api/ops/v1/events/ack": {
+      "post": {
+        "operationId": "acknowledgeOpsEvents",
+        "summary": "Acknowledge the highest contiguous accepted feed position",
+        "description": "Ice IQ validates that the acknowledgement is authenticated, monotonic, and no greater than its highest persisted feed position. Repeating the same value is harmless; a lower value cannot move the cursor backwards. MAGOS acknowledges only positions it has safely accepted contiguously. Acknowledgement never deletes outbox records. 204 No Content confirms the acknowledgement was accepted; it does not confirm that any outbox records were deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "../schemas/event-feed-acknowledgement.v1.schema.json" },
+              "examples": {
+                "acknowledgement": { "externalValue": "../examples/event-feed-acknowledgement.json" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Acknowledgement accepted. No response body. Acceptance does not mean any outbox records were deleted." }
+        }
+      }
     }
   },
   "components": {
@@ -62,6 +121,9 @@
       "Deployment": { "$ref": "../schemas/deployment.v1.schema.json" },
       "Backup": { "$ref": "../schemas/backup.v1.schema.json" },
       "AgentTask": { "$ref": "../schemas/agent-task.v1.schema.json" },
+      "EventFeedQuery": { "$ref": "../schemas/event-feed-query.v1.schema.json" },
+      "EventFeed": { "$ref": "../schemas/event-feed.v1.schema.json" },
+      "EventFeedAcknowledgement": { "$ref": "../schemas/event-feed-acknowledgement.v1.schema.json" },
       "Event": { "$ref": "../events/event.v1.schema.json" },
       "Problem": {
         "type": "object",

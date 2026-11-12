@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/job.completed.v1.schema.json",
+  "title": "JobCompletedEvent",
+  "allOf": [
+    { "$ref": "./envelope.v1.schema.json" },
+    {
+      "type": "object",
+      "required": ["eventType", "eventVersion", "payload"],
+      "properties": {
+        "eventType": { "const": "job.completed" },
+        "eventVersion": { "const": "1.0.0" },
+        "payload": {
+          "type": "object",
+          "required": ["jobKey", "executionId", "sequence", "status", "stagesCompleted", "stagesFailed"],
+          "properties": {
+            "jobKey": { "type": "string", "minLength": 1 },
+            "executionId": { "type": "string", "minLength": 1 },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "status": { "const": "complete" },
+            "stagesCompleted": { "type": "integer", "minimum": 0 },
+            "stagesFailed": { "type": "integer", "minimum": 0 },
+            "totalRecordsProcessed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "durationMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "additionalProperties": false,
+          "description": "The sum of stagesCompleted and stagesFailed must not exceed this execution's stageCount."
+        }
+      }
+    }
+  ]
+}

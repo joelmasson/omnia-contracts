@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import { resolve } from "node:path";
 import SwaggerParser from "@apidevtools/swagger-parser";
@@ -39,6 +39,11 @@ const eventRequirements = {
   "agent.task.started": ["startedAt"],
   "agent.task.completed": ["startedAt", "completedAt", "result"],
   "agent.task.failed": ["completedAt", "error"],
+  "job.started": ["jobKey", "executionId", "sequence", "trigger"],
+  "job.progress": ["jobKey", "executionId", "sequence", "stage", "stageIndex", "stageCount", "status"],
+  "job.warning": ["jobKey", "executionId", "sequence", "stage", "warningCode"],
+  "job.completed": ["jobKey", "executionId", "sequence", "status", "stagesCompleted", "stagesFailed"],
+  "job.failed": ["jobKey", "executionId", "sequence", "status", "failureCode"],
 };
 interface EventFixture {
   eventId: string;
@@ -51,8 +56,8 @@ interface EventFixture {
 }
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
-  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 6);
-  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 17);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 9);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 22);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
     assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
@@ -167,14 +172,306 @@ for (const [name, required] of Object.entries(eventRequirements)) {
         payload: { ...example.payload, status: name === "service.unavailable" ? "healthy" : "queued" },
       }), false, "Contradictory event state");
     }
-    const extended = {
-      ...example,
-      traceContext: { traceId: "trace-001" },
-      payload: { ...example.payload, futureOptionalField: true },
-    };
-    assert.deepEqual(eventSchema.parse(extended), extended);
+    const extendedEnvelope = { ...example, traceContext: { traceId: "trace-001" } };
+    if (name.startsWith("job.")) {
+      const extendedPayload = {
+        ...extendedEnvelope,
+        payload: { ...example.payload, futureOptionalField: true },
+      };
+      assert.equal(validate(extendedPayload), false, "Job payloads reject unknown properties");
+      assert.equal(eventSchema.safeParse(extendedPayload).success, false);
+      assert.deepEqual(eventSchema.parse(extendedEnvelope), extendedEnvelope, "Envelope remains extensible");
+    } else {
+      const extended = {
+        ...extendedEnvelope,
+        payload: { ...example.payload, futureOptionalField: true },
+      };
+      assert.deepEqual(eventSchema.parse(extended), extended);
+    }
   });
 }
+
+test("job event numeric, stage and payload constraints", () => {
+  const started = readJson<EventFixture>("examples/events/job.started.json");
+  const progress = readJson<EventFixture>("examples/events/job.progress.json");
+  const warning = readJson<EventFixture>("examples/events/job.warning.json");
+  const completed = readJson<EventFixture>("examples/events/job.completed.json");
+  const failed = readJson<EventFixture>("examples/events/job.failed.json");
+
+  const startedValidate = ajv.getSchema(schemaId("events/job.started.v1.schema.json"))!;
+  for (const sequence of [1, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(startedValidate({ ...started, payload: { ...started.payload, sequence } }), true);
+  }
+  for (const sequence of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(startedValidate({ ...started, payload: { ...started.payload, sequence } }), false);
+  }
+  for (const trigger of ["cron", "startup", "manual_api", "api_fallback", "dfhl_notifications"]) {
+    assert.equal(startedValidate({ ...started, payload: { ...started.payload, trigger } }), true);
+  }
+  assert.equal(startedValidate({
+    ...started,
+    payload: { ...started.payload, trigger: "unknown" },
+  }), false);
+
+  const progressValidate = ajv.getSchema(schemaId("events/job.progress.v1.schema.json"))!;
+  const stageNames = [
+    "nhle", "moneypuck", "nst", "skater-stats", "goalie-stats", "goalie-starts",
+    "goalie-storage", "player-storage", "standings", "schedule", "goalie-coverage",
+    "advanced-sources", "advanced-recompute",
+  ];
+  assert.equal(stageNames.length, 13);
+  for (const stage of stageNames) {
+    assert.equal(progressValidate({
+      ...progress,
+      payload: { ...progress.payload, stage },
+    }), true, stage);
+  }
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stage: "post-processing" },
+  }), false, "Progress stage must be one of the thirteen pipeline stages");
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stageIndex: 13, stageCount: 13 },
+  }), true, "The last catalog index may equal stageCount");
+  const indexBeyondCount = {
+    ...progress,
+    payload: { ...progress.payload, stageIndex: 14, stageCount: 13 },
+  };
+  assert.equal(progressValidate(indexBeyondCount), true, "JSON Schema cannot compare sibling numeric values");
+  assert.equal(eventSchema.safeParse(indexBeyondCount).success, false);
+  assert.match(
+    readJson<{ allOf: { properties: { payload: { properties: { stageIndex: { description: string } } } } }[] }>(
+      "events/job.progress.v1.schema.json",
+    ).allOf[1].properties.payload.properties.stageIndex.description,
+    /must not exceed stageCount/,
+  );
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stageIndex: 0 },
+  }), false);
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stageCount: 0 },
+  }), false);
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stageIndex: 1.5 },
+  }), false);
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, stageCount: 1.5 },
+  }), false);
+  assert.equal(progressValidate({
+    ...progress,
+    payload: { ...progress.payload, recordsProcessed: Number.MAX_SAFE_INTEGER },
+  }), true);
+  for (const recordsProcessed of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(progressValidate({
+      ...progress,
+      payload: { ...progress.payload, recordsProcessed },
+    }), false);
+  }
+
+  const warningValidate = ajv.getSchema(schemaId("events/job.warning.v1.schema.json"))!;
+  for (const warningCode of ["outbox_write_failed", "event_history_incomplete"]) {
+    assert.equal(warningValidate({
+      ...warning,
+      payload: { ...warning.payload, warningCode },
+    }), true, warningCode);
+  }
+  for (const stage of [...stageNames, "post-processing"]) {
+    assert.equal(warningValidate({
+      ...warning,
+      payload: { ...warning.payload, stage },
+    }), true, stage);
+  }
+  assert.equal(warningValidate({
+    ...warning,
+    payload: { ...warning.payload, stage: "unknown" },
+  }), false);
+  assert.equal(warningValidate({
+    ...warning,
+    payload: { ...warning.payload, warningCode: "x".repeat(101) },
+  }), false);
+  assert.equal(warningValidate({
+    ...warning,
+    payload: { ...warning.payload, message: "x".repeat(501) },
+  }), false);
+
+  const completedValidate = ajv.getSchema(schemaId("events/job.completed.v1.schema.json"))!;
+  for (const value of [0, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(completedValidate({
+      ...completed,
+      payload: { ...completed.payload, totalRecordsProcessed: value, durationMs: value },
+    }), true);
+  }
+  for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(completedValidate({
+      ...completed,
+      payload: { ...completed.payload, totalRecordsProcessed: value },
+    }), false);
+    assert.equal(completedValidate({
+      ...completed,
+      payload: { ...completed.payload, durationMs: value },
+    }), false);
+  }
+  assert.equal(completedValidate({
+    ...completed,
+    payload: { ...completed.payload, stagesCompleted: -1 },
+  }), false);
+  assert.equal(completedValidate({
+    ...completed,
+    payload: { ...completed.payload, stagesFailed: 0.5 },
+  }), false);
+  assert.match(
+    readJson<{ allOf: { properties: { payload: { description: string } } }[] }>(
+      "events/job.completed.v1.schema.json",
+    ).allOf[1].properties.payload.description,
+    /must not exceed this execution's stageCount/,
+  );
+  const completionFitsExecution = (
+    stagesCompleted: number,
+    stagesFailed: number,
+    stageCount: number,
+  ) => stagesCompleted + stagesFailed <= stageCount;
+  assert.equal(
+    completionFitsExecution(
+      completed.payload.stagesCompleted as number,
+      completed.payload.stagesFailed as number,
+      progress.payload.stageCount as number,
+    ),
+    true,
+  );
+  assert.equal(completionFitsExecution(13, 1, 13), false);
+
+  const failedValidate = ajv.getSchema(schemaId("events/job.failed.v1.schema.json"))!;
+  for (const failureCode of ["incomplete", "interrupted", "required_source_failed"]) {
+    assert.equal(failedValidate({
+      ...failed,
+      payload: { ...failed.payload, failureCode },
+    }), true, failureCode);
+  }
+  assert.equal(failedValidate({
+    ...failed,
+    payload: { ...failed.payload, failureCode: "unknown" },
+  }), false);
+  assert.equal(failedValidate({
+    ...failed,
+    payload: { ...failed.payload, message: "x".repeat(501) },
+  }), false);
+  const failedWithoutCounts = structuredClone(failed);
+  delete failedWithoutCounts.payload.recordsProcessed;
+  delete failedWithoutCounts.payload.totalRecordsProcessed;
+  assert.equal(failedValidate(failedWithoutCounts), true, "Both optional counts may be omitted");
+  const failedWithoutStageCount = structuredClone(failed);
+  delete failedWithoutStageCount.payload.failedStage;
+  delete failedWithoutStageCount.payload.recordsProcessed;
+  failedWithoutStageCount.payload.totalRecordsProcessed = 120;
+  assert.equal(failedValidate(failedWithoutStageCount), true, "Execution total does not require failedStage");
+  const recordsProcessedWithoutStage = structuredClone(failed);
+  delete recordsProcessedWithoutStage.payload.failedStage;
+  assert.equal(failedValidate(recordsProcessedWithoutStage), false, "recordsProcessed requires failedStage");
+  assert.equal(
+    failedValidate({
+      ...failed,
+      payload: { ...failed.payload, totalRecordsProcessed: 127 },
+    }),
+    true,
+    "Both stage and execution counts are valid together",
+  );
+  const descriptions = readJson<{
+    allOf: {
+      properties: {
+        payload: {
+          properties: {
+            recordsProcessed: { description: string };
+            totalRecordsProcessed: { description: string };
+          };
+        };
+      };
+    }[];
+  }>("events/job.failed.v1.schema.json").allOf[1].properties.payload.properties;
+  assert.match(descriptions.recordsProcessed.description, /Stage-level.*not the execution-wide total/);
+  assert.match(descriptions.recordsProcessed.description, /only when failedStage is supplied/);
+  assert.match(descriptions.totalRecordsProcessed.description, /Aggregate execution-level/);
+  assert.match(descriptions.totalRecordsProcessed.description, /not a count of unique records or entities/);
+  for (const value of [0, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(failedValidate({
+      ...failed,
+      payload: { ...failed.payload, recordsProcessed: value, totalRecordsProcessed: value, durationMs: value },
+    }), true);
+  }
+  for (const value of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    for (const field of ["recordsProcessed", "totalRecordsProcessed", "durationMs"]) {
+      assert.equal(failedValidate({
+        ...failed,
+        payload: { ...failed.payload, [field]: value },
+      }), false, `${field}=${value}`);
+    }
+  }
+});
+
+test("event feed, query and acknowledgement schemas enforce their wire shapes", () => {
+  const feedValidate = ajv.getSchema(schemaId("schemas/event-feed.v1.schema.json"))!;
+  const queryValidate = ajv.getSchema(schemaId("schemas/event-feed-query.v1.schema.json"))!;
+  const acknowledgementValidate = ajv.getSchema(
+    schemaId("schemas/event-feed-acknowledgement.v1.schema.json"),
+  )!;
+  const feed = readJson<Record<string, unknown>>("examples/event-feed.json");
+  const emptyFeed = readJson<Record<string, unknown>>("examples/event-feed-empty.json");
+  const acknowledgement = readJson<Record<string, unknown>>("examples/event-feed-acknowledgement.json");
+
+  assert.equal(feedValidate(feed), true, ajv.errorsText(feedValidate.errors));
+  assert.equal(feedValidate(emptyFeed), true, ajv.errorsText(feedValidate.errors));
+  assert.equal(acknowledgementValidate(acknowledgement), true, ajv.errorsText(acknowledgementValidate.errors));
+  assert.deepEqual(emptyFeed, { events: [], hasMore: false });
+  const feedItem = (feed as { events: unknown[] }).events[0];
+  assert.equal(feedValidate({
+    events: Array.from({ length: 101 }, () => feedItem),
+    hasMore: false,
+  }), false, "Feed batches cannot exceed 100 events");
+  assert.equal(feedValidate({ ...feed, extra: true }), false);
+  assert.equal(queryValidate({ after: 0, extra: true }), false);
+  assert.equal(acknowledgementValidate({
+    ...acknowledgement,
+    extra: true,
+  }), false);
+  const feedSizeRules = readJson<{
+    description: string;
+    properties: {
+      events: {
+        description: string;
+        items: { properties: { event: { description: string } } };
+      };
+    };
+  }>("schemas/event-feed.v1.schema.json");
+  assert.match(feedSizeRules.description, /2 MiB.*UTF-8 bytes/);
+  assert.match(feedSizeRules.properties.events.description, /100 events/);
+  assert.match(feedSizeRules.properties.events.items.properties.event.description, /16 KiB.*UTF-8 bytes/);
+
+  for (const after of [0, 1, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(queryValidate({ after }), true);
+  }
+  for (const after of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(queryValidate({ after }), false);
+  }
+  for (const limit of [1, 100]) {
+    assert.equal(queryValidate({ after: 0, limit }), true);
+  }
+  for (const limit of [0, -1, 1.5, 101, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(queryValidate({ after: 0, limit }), false);
+  }
+  for (const position of [0, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(acknowledgementValidate({ highestContiguousFeedPosition: position }), true);
+  }
+  for (const position of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(acknowledgementValidate({ highestContiguousFeedPosition: position }), false);
+  }
+
+  const feedEvent = (feed as { events: { feedPosition: number; event: unknown }[] }).events[0];
+  assert.ok(feedEvent.feedPosition <= 126, "Feed examples use ascending global positions");
+});
 
 test("numeric, format, enum, JSON and error boundaries", () => {
   const health = readJson<Record<string, unknown>>("examples/health-status.json");
@@ -306,6 +603,20 @@ test("OpenAPI 3.1 validates with all refs offline and uses canonical request/res
     paths: {
       "/health": { get: { responses: Record<string, { content: { "application/json": { schema: { $ref: string } } } }> } };
       "/events": { post: { requestBody: { content: { "application/json": { schema: { $ref: string } } } }; responses: Record<string, unknown> } };
+      "/api/ops/v1/events": {
+        get: {
+          description: string;
+          parameters: { name: string; in: string; required: boolean; schema: { $ref: string } }[];
+          responses: Record<string, unknown>;
+        };
+      };
+      "/api/ops/v1/events/ack": {
+        post: {
+          description: string;
+          requestBody: { content: { "application/json": { schema: { $ref: string } } } };
+          responses: Record<string, { description: string; content?: unknown }>;
+        };
+      };
     };
   }>("openapi/service.v1.openapi.json");
   assert.equal(raw.info.version, readJson<{ version: string }>("package.json").version);
@@ -314,4 +625,31 @@ test("OpenAPI 3.1 validates with all refs offline and uses canonical request/res
   assert.equal(raw.paths["/events"].post.requestBody.content["application/json"].schema.$ref,
     "../events/event.v1.schema.json");
   assert.deepEqual(Object.keys(raw.paths["/events"].post.responses).sort(), ["202", "400", "415", "422", "503"]);
+  assert.deepEqual(raw.paths["/api/ops/v1/events"].get.parameters.map(({ name }) => name), ["after", "limit"]);
+  assert.equal(raw.paths["/api/ops/v1/events"].get.parameters[0].required, true);
+  assert.equal(raw.paths["/api/ops/v1/events"].get.parameters[0].schema.$ref,
+    "../schemas/event-feed-query.v1.schema.json#/properties/after");
+  assert.deepEqual(Object.keys(raw.paths["/api/ops/v1/events"].get.responses).sort(), ["200", "400"]);
+  assert.match(raw.paths["/api/ops/v1/events"].get.description, /future after cursor is invalid/);
+  assert.equal(
+    raw.paths["/api/ops/v1/events/ack"].post.requestBody.content["application/json"].schema.$ref,
+    "../schemas/event-feed-acknowledgement.v1.schema.json",
+  );
+  assert.match(raw.paths["/api/ops/v1/events/ack"].post.description, /monotonic/);
+  assert.match(raw.paths["/api/ops/v1/events/ack"].post.description, /never deletes outbox records/);
+  const acknowledgementResponse = raw.paths["/api/ops/v1/events/ack"].post.responses["204"];
+  assert.deepEqual(Object.keys(raw.paths["/api/ops/v1/events/ack"].post.responses), ["204"]);
+  assert.match(acknowledgementResponse.description, /accepted/);
+  assert.match(acknowledgementResponse.description, /No response body/);
+  assert.match(acknowledgementResponse.description, /not.*deleted/);
+  assert.equal("content" in acknowledgementResponse, false);
+});
+
+test("README requires consumer-side cross-field validation independent of implementation language", () => {
+  const readme = readFileSync(resolve(root, "README.md"), "utf8");
+  assert.match(readme, /Consumers in every implementation language and with every validation library/);
+  assert.match(readme, /For `job\.progress`, `stageIndex` must not exceed `stageCount`/);
+  assert.match(readme, /For `job\.completed`, `stagesCompleted \+ stagesFailed` must not exceed/);
+  assert.match(readme, /validate it against persisted execution history/);
+  assert.match(readme, /Zod is not their sole\s+authority/);
 });

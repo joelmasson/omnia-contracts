@@ -25,4 +25,7 @@ export const incidentSchema = validator<ContractMap["incident"]>("schemas/incide
 export const deploymentSchema = validator<ContractMap["deployment"]>("schemas/deployment.v1.schema.json");
 export const backupSchema = validator<ContractMap["backup"]>("schemas/backup.v1.schema.json");
 export const agentTaskSchema = validator<ContractMap["agentTask"]>("schemas/agent-task.v1.schema.json");
-export const eventSchema = validator<ContractMap["event"]>("events/event.v1.schema.json");
+export const eventSchema = validator<ContractMap["event"]>("events/event.v1.schema.json").refine(
+  (event) => event.eventType !== "job.progress" || event.payload.stageIndex <= event.payload.stageCount,
+  { error: "job.progress payload.stageIndex must not exceed stageCount" },
+);

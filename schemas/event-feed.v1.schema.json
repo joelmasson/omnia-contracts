@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/event-feed.v1.schema.json",
+  "title": "EventFeed",
+  "type": "object",
+  "required": ["events", "hasMore"],
+  "properties": {
+    "events": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["feedPosition", "event"],
+        "properties": {
+          "feedPosition": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "event": {
+            "$ref": "../events/event.v1.schema.json",
+            "description": "Serialized event object maximum is 16 KiB measured in UTF-8 bytes."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Events are in ascending feedPosition order. A batch contains at most 100 events. Never truncate or silently omit an oversized event."
+    },
+    "hasMore": { "type": "boolean" }
+  },
+  "additionalProperties": false,
+  "description": "The serialized response is limited to 2 MiB measured in UTF-8 bytes. An empty feed returns events: [] and hasMore: false."
+}

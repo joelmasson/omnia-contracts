@@ -9,9 +9,9 @@ The repository is initially empty of application code by design.
 
 | Location | Contents |
 | --- | --- |
-| [schemas/](./schemas/) | Six domain contracts, major version 1 |
-| [events/](./events/) | Envelope, fifteen event contracts and a supported-event union |
-| [openapi/](./openapi/) | Optional `GET /health` and `POST /events` API capabilities |
+| [schemas/](./schemas/) | Domain and Ice IQ feed contracts |
+| [events/](./events/) | Envelope, job and service event contracts, and a supported-event union |
+| [openapi/](./openapi/) | Optional health, event, and Ice IQ feed API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
 | [examples/](./examples/) | One JSON fixture per resource/event and a runnable consumer |
 | [tests/](./tests/) | Schema, fixture, negative, OpenAPI and TypeScript checks |
@@ -51,6 +51,9 @@ Runtime validation requires a service-local validator, not a contracts server.
 
 [validators.ts](./typescript/validators.ts) demonstrates Zod 4 wrappers around
 Ajv's canonical schemas, avoiding a second hand-maintained schema definition.
+The adapter may implement consumer-side semantic checks, but it is only an
+example and is not their authority. Generated TypeScript types are structural
+and do not enforce numeric bounds or these semantic rules.
 The example is Node.js-only and loads repository JSON files from disk. Copy and
 adapt it to your service's bundled assets; it is not a browser-ready SDK.
 Unknown fields are preserved and validation errors are reported, not defaulted.
@@ -92,7 +95,8 @@ if (event.eventType === "backup.completed") {
   optional for compatibility with older producers.
   Consumers must apply their own freshness threshold to `timestamp` (and, where
   relevant, `lastSuccessfulCheck`): a stale report, even one whose status is
-  `healthy`, does not establish current service health.
+  `healthy`, does not establish current service health. Stale observations must
+  remain distinguishable from current observations.
 - Incident severity: `critical`, `high`, `medium`, `low`, `info`; incident status:
   `open`, `acknowledged`, `resolved`. Deployment/backup status: `started`,
   `completed`, `failed`. Backup type is `full` (all selected data),
@@ -119,6 +123,94 @@ if (event.eventType === "backup.completed") {
   A checksum uses `algorithm:hex`; supported algorithms are ARCHIVIST policy.
 
 ## Events
+
+### Approved operational integration direction
+
+The [OMNIA architecture decision register](https://github.com/joelmasson/omnia-magos/blob/main/docs/architecture/operational-data-model.md)
+records the approved generic job events and Ice IQ feed design. This Contracts
+phase defines their schemas and OpenAPI surface only; it does not implement
+producers, persistence, authentication, polling, or application endpoints.
+
+The approved direction keeps the existing common event envelope unchanged and
+adds five initial `1.0.0` job event schemas (`job.started`, `job.progress`,
+`job.warning`, `job.completed`, and `job.failed`) and Ice IQ feed API schemas.
+New job payloads use strict validation, rejecting unknown payload properties;
+this is specific to those payloads and does not change the existing extensible
+envelope or other current schemas. API versions and event versions are independent.
+Contracts releases use immutable Git tags; MAGOS and Ice IQ pin exact releases
+and vendor required schemas offline. Runtime schema fetching is not permitted.
+Consumer updates require review, unsupported event versions are rejected,
+historical schemas remain available, and old and new major versions coexist
+during a migration window.
+
+For Ice IQ, execution `sequence` is persistence order within an execution,
+`stageIndex` is the stable catalog position (not execution order; the first six
+stages may run concurrently), and `feedPosition` is global outbox order.
+Successful insertion assigns sequence and feed position atomically; failed
+writes consume neither. Sequence 1 is `job.started`.
+The producer durably preserves the original start information, including its
+actual timestamp, and queues later events behind it until it can persist the
+start first. If that information cannot be recovered, report incomplete
+history, never fabricate a start. Reporting failures do not block NHL sync.
+
+The feed is `GET /api/ops/v1/events?after={position}&limit={limit}`. `after=0`
+starts a read; `limit` defaults to 100 and cannot exceed 100. Events are
+returned in ascending `feedPosition` order. An empty feed is `200` with
+`events: []` and `hasMore: false`. Serialized event size is limited to 16 KiB
+and response size to 2 MiB, measured in UTF-8 bytes; oversized events are never
+truncated or silently omitted. Invalid, unsafe, fractional, negative, or future
+cursors and invalid or over-limit limits receive `400`; no error body is
+specified.
+
+MAGOS posts `highestContiguousFeedPosition` to
+`POST /api/ops/v1/events/ack` and acknowledges only the highest contiguous feed
+position proved durably accepted; acknowledgement is not proof of projection
+and does not authorize deletion. On cursor loss or disagreement, acknowledgement
+stops while the persisted Ice IQ acknowledgement is compared with MAGOS's
+durable accepted history. Recovery is limited to the highest provably accepted
+contiguous position; disagreement or missing, inconsistent, or unexplained gaps
+require operator intervention. Never automatically reset to zero, jump to the
+latest position, skip evidence, or acknowledge unproven acceptance. Forward-only producer
+acknowledgements cannot be assumed reversible. `204 No Content` confirms that
+the acknowledgement was accepted, not that any outbox records were deleted.
+Ice IQ outbox and MAGOS immutable event history have no automatic deletion
+under the initial policy. The contracts do not define authentication mechanics.
+
+### Mandatory consumer-side semantic validation
+
+Consumers in every implementation language and with every validation library
+must apply these checks in addition to JSON Schema validation:
+
+- For `job.progress`, `stageIndex` must not exceed `stageCount`.
+- For `job.completed`, `stagesCompleted + stagesFailed` must not exceed the
+  execution's established `stageCount`. Because this depends on execution
+  history, validate it against persisted execution history; do not assume the
+  event can be validated in isolation.
+- In `job.failed`, `recordsProcessed` is the count accumulated by `failedStage`
+  at failure, not the execution-wide total; it may appear only with
+  `failedStage`, and should be omitted if the stage or count is not reliable.
+  `totalRecordsProcessed` is the aggregate execution-level count up to failure,
+  not a stage count. It may be omitted if it cannot be reliably calculated and
+  does not imply a count of unique records or entities unless the producer
+  explicitly guarantees that property.
+
+JSON Schema remains authoritative for constraints it can express directly.
+Zod validation may implement these semantic checks, but Zod is not their sole
+authority. Other feed-state rules, including cursor monotonicity, rejecting
+future cursors, and ascending feed order, likewise require validation against
+feed state.
+
+The approved MAGOS operational API direction distinguishes durable acceptance
+from successful projection and exposes projection/recovery health separately
+from the producer-reported outcome. Bounded automatic projection retries may
+end in `needs_recovery`; only an authenticated operator may request MAGOS
+replay, not producers or SERVITOR independently. The operator API, its wire
+schema and authentication are not implemented or published by these decisions.
+The existing generic `/events` capability and envelope remain unchanged.
+
+The supported-event union and examples include the five job events. The OpenAPI
+feed paths define contract shapes only; no application endpoint or operational
+authorization is implied.
 
 Each event requires `eventId`, `eventType`, `eventVersion`, `timestamp`, `source`,
 `correlationId` and `payload`. `eventVersion` is a strict SemVer 2.0.0 value
@@ -149,6 +241,11 @@ when retrying that event.
 | `agent.task.started` | `1.0.0` | AgentTask | `started`, `startedAt` |
 | `agent.task.completed` | `1.0.0` | AgentTask | `completed`, `startedAt`, `completedAt`, `result` |
 | `agent.task.failed` | `1.0.0` | AgentTask | `failed`, `completedAt`, `error`; may fail before starting |
+| `job.started` | `1.0.0` | Strict job payload | `trigger`, job key, execution ID, sequence |
+| `job.progress` | `1.0.0` | Strict job payload | Stage, catalog index/count, `started` or `completed` |
+| `job.warning` | `1.0.0` | Strict job payload | Stage, stable producer-owned warning code |
+| `job.completed` | `1.0.0` | Strict job payload | `complete`, completed/failed stage totals |
+| `job.failed` | `1.0.0` | Strict job payload | `failed`, stable failure code; optional stage-level and execution-level record counts |
 
 Unavailable observations use `null` for never-observed uptime, or the last
 observed uptime with an `uptimeObservedAt` detail when stale; do not invent a
@@ -162,6 +259,8 @@ When verification is requested, the valid backup lifecycle paths are
 information and verification status `not_requested`; it does not require
 `completedAt` and does not imply a completed artifact. Backup completion
 records that the operation finished; it does not assert verification.
+Both operation and verification failures carry structured, non-secret failure
+references.
 `backup.completed` may use verification status `pending` or `not_requested`.
 When verification is requested, a later `backup.verified` records success,
 while `backup.verification.failed` records an unsuccessful integrity check
@@ -209,9 +308,12 @@ See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md).
   identifier for an incompatible contract, even during draft development.
   New incompatible schemas/events coexist under `v2`, with a migration window.
 - An optional additive property is generally a minor change because consumers
-  must tolerate unknown fields. Adding required fields, removing or renaming
-  properties, narrowing constraints, and adding/removing enum values are
-  breaking changes (exhaustive consumers may depend on the old enum).
+  of existing extensible schemas tolerate unknown fields. The approved future
+  job payloads are strict, so additive payload fields require explicit
+  versioning and compatibility review rather than assuming old consumers
+  tolerate them. Adding required fields, removing or renaming properties,
+  narrowing constraints, and adding/removing enum values are breaking changes
+  (exhaustive consumers may depend on the old enum).
 - Corrections to documentation/examples without changing accepted data are
   patches. Relaxing constraints still needs consumer review: new producers may
   emit data an old consumer rejects. Do not assume it is automatically compatible.
