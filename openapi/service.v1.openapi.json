@@ -57,7 +57,7 @@
       "get": {
         "operationId": "getOpsEvents",
         "summary": "Read the Ice IQ event feed",
-        "description": "Returns events in ascending feedPosition order. The first request uses after=0. A response contains at most 100 events; each serialized event is limited to 16 KiB and the serialized response to 2 MiB, measured in UTF-8 bytes. Never truncate or silently omit an oversized event. An empty feed returns 200 with events: [] and hasMore: false. A future after cursor is invalid.",
+        "description": "Returns events in ascending feedPosition order. The first request uses after=0. A response contains at most 100 events; each serialized event is limited to 16 KiB and the serialized response to 2 MiB, measured in UTF-8 bytes. Never truncate or silently omit an oversized event. An empty feed returns 200 with events: [] and hasMore: false. hasMore=true means more events existed beyond the returned batch when the response was generated; false means no additional events existed at that moment. Events arriving afterward are picked up by the next poll. A future after cursor is invalid.",
         "parameters": [
           {
             "name": "after",

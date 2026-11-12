@@ -152,11 +152,16 @@ The producer durably preserves the original start information, including its
 actual timestamp, and queues later events behind it until it can persist the
 start first. If that information cannot be recovered, report incomplete
 history, never fabricate a start. Reporting failures do not block NHL sync.
+`job.started` has sequence 1; all subsequent event types have sequence greater
+than 1.
 
 The feed is `GET /api/ops/v1/events?after={position}&limit={limit}`. `after=0`
 starts a read; `limit` defaults to 100 and cannot exceed 100. Events are
 returned in ascending `feedPosition` order. An empty feed is `200` with
-`events: []` and `hasMore: false`. Serialized event size is limited to 16 KiB
+`events: []` and `hasMore: false`. `hasMore: true` means more events existed
+beyond the returned batch when the response was generated; `false` means none
+existed then. Events arriving afterward are picked up by the next poll.
+Serialized event size is limited to 16 KiB
 and response size to 2 MiB, measured in UTF-8 bytes; oversized events are never
 truncated or silently omitted. Invalid, unsafe, fractional, negative, or future
 cursors and invalid or over-limit limits receive `400`; no error body is

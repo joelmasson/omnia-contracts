@@ -240,9 +240,9 @@ export type JobStartedEvent = EventEnvelope & {
     jobKey: string;
     executionId: string;
     /**
-     * Positive safe integer; sequence 1 is job.started.
+     * Exactly 1; job.started is the first event in an execution.
      */
-    sequence: number;
+    sequence: 1;
     trigger: "cron" | "startup" | "manual_api" | "api_fallback" | "dfhl_notifications";
   };
   [k: string]: unknown;
@@ -352,8 +352,7 @@ export type JobFailedEvent = EventEnvelope & {
       | "schedule"
       | "goalie-coverage"
       | "advanced-sources"
-      | "advanced-recompute"
-      | "post-processing";
+      | "advanced-recompute";
     /**
      * Stage-level count accumulated for failedStage when the execution failed; not the execution-wide total. Supply only when failedStage is supplied, and omit if the stage or count cannot be reliably identified.
      */
@@ -551,6 +550,9 @@ export interface EventFeed {
     feedPosition: number;
     event: OmniaEvent;
   }[];
+  /**
+   * True when more events existed beyond this returned batch when the response was generated; false when no additional events existed at that moment. Events arriving afterward are returned by the next poll.
+   */
   hasMore: boolean;
 }
 export interface EventEnvelope {

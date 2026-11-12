@@ -199,10 +199,10 @@ test("job event numeric, stage and payload constraints", () => {
   const failed = readJson<EventFixture>("examples/events/job.failed.json");
 
   const startedValidate = ajv.getSchema(schemaId("events/job.started.v1.schema.json"))!;
-  for (const sequence of [1, Number.MAX_SAFE_INTEGER]) {
+  for (const sequence of [1]) {
     assert.equal(startedValidate({ ...started, payload: { ...started.payload, sequence } }), true);
   }
-  for (const sequence of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+  for (const sequence of [0, 2, -1, 1.5, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal(startedValidate({ ...started, payload: { ...started.payload, sequence } }), false);
   }
   for (const trigger of ["cron", "startup", "manual_api", "api_fallback", "dfhl_notifications"]) {
@@ -212,8 +212,38 @@ test("job event numeric, stage and payload constraints", () => {
     ...started,
     payload: { ...started.payload, trigger: "unknown" },
   }), false);
+  assert.equal(startedValidate({
+    ...started,
+    payload: { ...started.payload, sequence: 1.0 },
+  }), true, "JSON numeric 1 remains the integer sequence const");
 
   const progressValidate = ajv.getSchema(schemaId("events/job.progress.v1.schema.json"))!;
+  const warningValidate = ajv.getSchema(schemaId("events/job.warning.v1.schema.json"))!;
+  const completedValidate = ajv.getSchema(schemaId("events/job.completed.v1.schema.json"))!;
+  const sequenceValidators = [
+    { name: "job.progress", validate: progressValidate, event: progress },
+    { name: "job.warning", validate: warningValidate, event: warning },
+    { name: "job.completed", validate: completedValidate, event: completed },
+    {
+      name: "job.failed",
+      validate: ajv.getSchema(schemaId("events/job.failed.v1.schema.json"))!,
+      event: failed,
+    },
+  ];
+  for (const { name, validate, event } of sequenceValidators) {
+    for (const sequence of [2, Number.MAX_SAFE_INTEGER]) {
+      assert.equal(validate({
+        ...event,
+        payload: { ...event.payload, sequence },
+      }), true, `${name} sequence ${sequence}`);
+    }
+    for (const sequence of [1, 0, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.equal(validate({
+        ...event,
+        payload: { ...event.payload, sequence },
+      }), false, `${name} sequence ${sequence}`);
+    }
+  }
   const stageNames = [
     "nhle", "moneypuck", "nst", "skater-stats", "goalie-stats", "goalie-starts",
     "goalie-storage", "player-storage", "standings", "schedule", "goalie-coverage",
@@ -273,7 +303,6 @@ test("job event numeric, stage and payload constraints", () => {
     }), false);
   }
 
-  const warningValidate = ajv.getSchema(schemaId("events/job.warning.v1.schema.json"))!;
   for (const warningCode of ["outbox_write_failed", "event_history_incomplete"]) {
     assert.equal(warningValidate({
       ...warning,
@@ -299,7 +328,6 @@ test("job event numeric, stage and payload constraints", () => {
     payload: { ...warning.payload, message: "x".repeat(501) },
   }), false);
 
-  const completedValidate = ajv.getSchema(schemaId("events/job.completed.v1.schema.json"))!;
   for (const value of [0, Number.MAX_SAFE_INTEGER]) {
     assert.equal(completedValidate({
       ...completed,
@@ -346,6 +374,10 @@ test("job event numeric, stage and payload constraints", () => {
   assert.equal(completionFitsExecution(13, 1, 13), false);
 
   const failedValidate = ajv.getSchema(schemaId("events/job.failed.v1.schema.json"))!;
+  assert.equal(failedValidate({
+    ...failed,
+    payload: { ...failed.payload, failedStage: "post-processing" },
+  }), false, "post-processing is not a failedStage");
   for (const failureCode of ["incomplete", "interrupted", "required_source_failed"]) {
     assert.equal(failedValidate({
       ...failed,
@@ -444,11 +476,17 @@ test("event feed, query and acknowledgement schemas enforce their wire shapes", 
         description: string;
         items: { properties: { event: { description: string } } };
       };
+      hasMore: { description: string };
     };
   }>("schemas/event-feed.v1.schema.json");
   assert.match(feedSizeRules.description, /2 MiB.*UTF-8 bytes/);
   assert.match(feedSizeRules.properties.events.description, /100 events/);
   assert.match(feedSizeRules.properties.events.items.properties.event.description, /16 KiB.*UTF-8 bytes/);
+  assert.match(feedSizeRules.properties.hasMore.description, /more events existed beyond this returned batch/);
+  assert.match(feedSizeRules.properties.hasMore.description, /when the response was generated; false when no additional events existed at that moment/);
+  assert.match(feedSizeRules.properties.hasMore.description, /Events arriving afterward are returned by the next poll/);
+  const feedWithMore = { ...feed, hasMore: true };
+  assert.equal(feedValidate(feedWithMore), true, "hasMore=true is a valid feed response");
 
   for (const after of [0, 1, Number.MAX_SAFE_INTEGER]) {
     assert.equal(queryValidate({ after }), true);
@@ -631,6 +669,8 @@ test("OpenAPI 3.1 validates with all refs offline and uses canonical request/res
     "../schemas/event-feed-query.v1.schema.json#/properties/after");
   assert.deepEqual(Object.keys(raw.paths["/api/ops/v1/events"].get.responses).sort(), ["200", "400"]);
   assert.match(raw.paths["/api/ops/v1/events"].get.description, /future after cursor is invalid/);
+  assert.match(raw.paths["/api/ops/v1/events"].get.description, /hasMore=true means more events existed/);
+  assert.match(raw.paths["/api/ops/v1/events"].get.description, /picked up by the next poll/);
   assert.equal(
     raw.paths["/api/ops/v1/events/ack"].post.requestBody.content["application/json"].schema.$ref,
     "../schemas/event-feed-acknowledgement.v1.schema.json",

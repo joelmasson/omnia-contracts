@@ -26,7 +26,10 @@
       },
       "description": "Events are in ascending feedPosition order. A batch contains at most 100 events. Never truncate or silently omit an oversized event."
     },
-    "hasMore": { "type": "boolean" }
+    "hasMore": {
+      "type": "boolean",
+      "description": "True when more events existed beyond this returned batch when the response was generated; false when no additional events existed at that moment. Events arriving afterward are returned by the next poll."
+    }
   },
   "additionalProperties": false,
   "description": "The serialized response is limited to 2 MiB measured in UTF-8 bytes. An empty feed returns events: [] and hasMore: false."

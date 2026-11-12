@@ -18,9 +18,9 @@
             "executionId": { "type": "string", "minLength": 1 },
             "sequence": {
               "type": "integer",
-              "minimum": 1,
+              "const": 1,
               "maximum": 9007199254740991,
-              "description": "Positive safe integer; sequence 1 is job.started."
+              "description": "Exactly 1; job.started is the first event in an execution."
             },
             "trigger": {
               "type": "string",
