@@ -1,0 +1,30 @@
+{
+  "eventId": "f5e4d3c2-b1a0-4987-8765-43210fedcba9",
+  "eventType": "archivist.execution.completed",
+  "eventVersion": "1.0.0",
+  "timestamp": "2026-11-18T20:24:23.829Z",
+  "source": "ARCHIVIST",
+  "correlationId": "f8e7ce16-9db9-46ee-b7f7-f8bcb27979df",
+  "payload": {
+    "executionId": "f8e7ce16-9db9-46ee-b7f7-f8bcb27979df",
+    "command": "retention-plan",
+    "sourceId": "fantasy-hockey-db",
+    "startedAt": "2026-11-18T20:24:17.578Z",
+    "completedAt": "2026-11-18T20:24:23.829Z",
+    "status": "success",
+    "stage": "complete",
+    "capacity": {
+      "free": 1902740460901,
+      "total": 2202512916480
+    },
+    "retentionPolicy": {
+      "daily": 14,
+      "weekly": 4,
+      "monthly": 3
+    },
+    "retentionPlanSummary": {
+      "keepCount": 0,
+      "removeCount": 0
+    }
+  }
+}

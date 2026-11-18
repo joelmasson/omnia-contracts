@@ -60,7 +60,8 @@ export type OmniaEvent =
   | JobProgressEvent
   | JobWarningEvent
   | JobCompletedEvent
-  | JobFailedEvent;
+  | JobFailedEvent
+  | ArchivistExecutionCompletedEvent;
 export type ServiceHealthChangedEvent = EventEnvelope & {
   eventType: "service.health.changed";
   eventVersion: "1.1.0";
@@ -365,6 +366,24 @@ export type JobFailedEvent = EventEnvelope & {
   };
   [k: string]: unknown;
 };
+export type ArchivistExecutionCompletedEvent = EventEnvelope & {
+  eventType: "archivist.execution.completed";
+  eventVersion: "1.0.0";
+  payload: {
+    executionId: string;
+    command: "init" | "backup" | "verify" | "restore" | "retention-plan";
+    sourceId: string;
+    startedAt: string;
+    completedAt: string;
+    status: "success" | "failure";
+    stage: string;
+    capacity?: { free: number; total: number };
+    retentionPolicy?: { daily: number; weekly: number; monthly: number };
+    retentionPlanSummary?: { keepCount: number; removeCount: number };
+    error?: { code: string; message: string; externalDiagnostic?: { executable?: "restic" | "rclone"; exitCode?: number; category: string; timedOut: boolean; summary: string } };
+  };
+  [k: string]: unknown;
+};
 export type OmniaEvent1 =
   | ServiceHealthChangedEvent
   | ServiceUnavailableEvent
@@ -385,7 +404,8 @@ export type OmniaEvent1 =
   | JobProgressEvent
   | JobWarningEvent
   | JobCompletedEvent
-  | JobFailedEvent;
+  | JobFailedEvent
+  | ArchivistExecutionCompletedEvent;
 
 export interface ContractMap {
   serviceRegistration: ServiceRegistration;

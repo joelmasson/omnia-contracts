@@ -44,6 +44,7 @@ const eventRequirements = {
   "job.warning": ["jobKey", "executionId", "sequence", "stage", "warningCode"],
   "job.completed": ["jobKey", "executionId", "sequence", "status", "stagesCompleted", "stagesFailed"],
   "job.failed": ["jobKey", "executionId", "sequence", "status", "failureCode"],
+  "archivist.execution.completed": ["executionId", "command", "sourceId", "startedAt", "completedAt", "status", "stage"],
 };
 interface EventFixture {
   eventId: string;
@@ -57,7 +58,7 @@ interface EventFixture {
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
   assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 9);
-  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 22);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 23);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
     assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
