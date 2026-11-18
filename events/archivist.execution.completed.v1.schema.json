@@ -207,44 +207,6 @@
               "additionalProperties": false
             }
           },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "status": {
-                    "const": "failure"
-                  }
-                },
-                "required": [
-                  "status"
-                ]
-              },
-              "then": {
-                "required": [
-                  "error"
-                ]
-              }
-            },
-            {
-              "if": {
-                "properties": {
-                  "status": {
-                    "const": "success"
-                  }
-                },
-                "required": [
-                  "status"
-                ]
-              },
-              "then": {
-                "not": {
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          ],
           "additionalProperties": false
         }
       }
