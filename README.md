@@ -9,7 +9,7 @@ The repository is initially empty of application code by design.
 
 | Location | Contents |
 | --- | --- |
-| [schemas/](./schemas/) | Domain and Ice IQ feed contracts |
+| [schemas/](./schemas/) | Domain, ARCHIVIST execution, and Ice IQ feed contracts |
 | [events/](./events/) | Envelope, job and service event contracts, and a supported-event union |
 | [openapi/](./openapi/) | Optional health, event, and Ice IQ feed API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
