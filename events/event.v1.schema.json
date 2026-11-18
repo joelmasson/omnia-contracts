@@ -22,6 +22,7 @@
     { "$ref": "./job.progress.v1.schema.json" },
     { "$ref": "./job.warning.v1.schema.json" },
     { "$ref": "./job.completed.v1.schema.json" },
-    { "$ref": "./job.failed.v1.schema.json" }
+    { "$ref": "./job.failed.v1.schema.json" },
+    { "$ref": "./archivist.execution.completed.v1.schema.json" }
   ]
 }

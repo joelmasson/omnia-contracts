@@ -60,7 +60,8 @@ export type OmniaEvent =
   | JobProgressEvent
   | JobWarningEvent
   | JobCompletedEvent
-  | JobFailedEvent;
+  | JobFailedEvent
+  | ArchivistExecutionCompletedEvent;
 export type ServiceHealthChangedEvent = EventEnvelope & {
   eventType: "service.health.changed";
   eventVersion: "1.1.0";
@@ -365,6 +366,12 @@ export type JobFailedEvent = EventEnvelope & {
   };
   [k: string]: unknown;
 };
+export type ArchivistExecutionCompletedEvent = EventEnvelope & {
+  eventType: "archivist.execution.completed";
+  eventVersion: "1.0.0";
+  payload: ArchivistExecution;
+  [k: string]: unknown;
+};
 export type OmniaEvent1 =
   | ServiceHealthChangedEvent
   | ServiceUnavailableEvent
@@ -385,7 +392,8 @@ export type OmniaEvent1 =
   | JobProgressEvent
   | JobWarningEvent
   | JobCompletedEvent
-  | JobFailedEvent;
+  | JobFailedEvent
+  | ArchivistExecutionCompletedEvent;
 
 export interface ContractMap {
   serviceRegistration: ServiceRegistration;
@@ -394,6 +402,7 @@ export interface ContractMap {
   deployment: Deployment;
   backup: Backup;
   agentTask: AgentTask;
+  archivistExecution: ArchivistExecution;
   eventFeedQuery: EventFeedQuery;
   eventFeed: EventFeed;
   eventFeedAcknowledgement: EventFeedAcknowledgement;
@@ -524,6 +533,65 @@ export interface AgentTaskError {
   message: string;
   details?: {
     [k: string]: unknown;
+  };
+  [k: string]: unknown;
+}
+export interface ArchivistExecution {
+  executionId: string;
+  command: "init" | "backup" | "verify" | "restore" | "retention-plan";
+  sourceId: string;
+  startedAt: string;
+  completedAt: string;
+  status: "success" | "failure";
+  stage: string;
+  capacity?: {
+    free: number;
+    total: number;
+  };
+  retentionPolicy?: {
+    daily: number;
+    weekly: number;
+    monthly: number;
+  };
+  retentionPlanSummary?: {
+    keepCount: number;
+    removeCount: number;
+  };
+  error?: {
+    code:
+      | "INVALID_CONFIG"
+      | "SOURCE_UNAVAILABLE"
+      | "DATABASE_BACKUP_FAILED"
+      | "ENCRYPTION_FAILED"
+      | "AUTHENTICATION_FAILED"
+      | "UPLOAD_FAILED"
+      | "INSUFFICIENT_STORAGE"
+      | "INTEGRITY_FAILED"
+      | "RETENTION_FAILED"
+      | "RESTORE_FAILED"
+      | "DEPENDENCY_FAILED"
+      | "EXECUTION_BUSY"
+      | "REPORT_FAILED"
+      | "CATALOG_FAILED"
+      | "INTERNAL_ERROR";
+    message: string;
+    externalDiagnostic?: {
+      executable?: "restic" | "rclone";
+      exitCode?: number;
+      category:
+        | "authentication"
+        | "encryption"
+        | "integrity"
+        | "storage_capacity"
+        | "network"
+        | "timeout"
+        | "remote_service"
+        | "permission_or_configuration"
+        | "dependency"
+        | "external_command_failure";
+      timedOut: boolean;
+      summary: string;
+    };
   };
   [k: string]: unknown;
 }

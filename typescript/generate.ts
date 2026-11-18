@@ -9,6 +9,7 @@ const resourceNames = [
   "deployment",
   "backup",
   "agent-task",
+  "archivist-execution",
   "event-feed-query",
   "event-feed",
   "event-feed-acknowledgement",

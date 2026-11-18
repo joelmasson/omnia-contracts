@@ -9,7 +9,7 @@ The repository is initially empty of application code by design.
 
 | Location | Contents |
 | --- | --- |
-| [schemas/](./schemas/) | Domain and Ice IQ feed contracts |
+| [schemas/](./schemas/) | Domain, ARCHIVIST execution, and Ice IQ feed contracts |
 | [events/](./events/) | Envelope, job and service event contracts, and a supported-event union |
 | [openapi/](./openapi/) | Optional health, event, and Ice IQ feed API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
@@ -349,3 +349,37 @@ See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md).
 4. Define per-integration delivery/retry/deduplication policies and retention.
 5. Agree on backup checksum algorithms and verification policy, and whether
    failures need first-class structured errors beyond the task error contract.
+
+
+## ARCHIVIST execution reporting
+
+ARCHIVIST owns the `archivist.execution.completed` event (wire version
+`1.0.0`). It is a terminal summary for one ARCHIVIST command, delivered through
+the existing durable event-feed pattern. `eventId` identifies the immutable
+delivery record; `payload.executionId` identifies the command execution and
+is also the event correlation ID.
+
+The payload supports `init`, `backup`, `verify`, `restore`, and
+`retention-plan`. A successful command means only that command completed:
+successful `retention-plan` is not a backup, successful `verify` is not a
+new backup, and successful `restore` is not automatically a scheduled restore
+test. Consumers must interpret `command` and `status` together.
+
+Only sanitized summaries cross the boundary. Do not include repository
+identifiers, credentials, raw paths, snapshot IDs, database hashes, raw
+retention-plan snapshot lists, database contents, or raw subprocess output.
+Retention details are counts only. Failure messages and external diagnostics
+must remain sanitized and bounded.
+
+A terminal execution event does not by itself prove that every reporting
+consumer has projected it. Producers durably preserve events in an outbox,
+reuse the same `eventId` on delivery retries, and retain records until their
+feed acknowledgement policy permits archival. Consumers deduplicate by
+`eventId`; acknowledgement proves durable acceptance only, not successful
+projection. Missing reports and stale observations remain unknown.
+
+The event schema validates structure. ARCHIVIST additionally owns semantic
+checks: execution IDs are unique; timestamps are ordered; the event is emitted
+only after the local execution report is durably persisted; a failure outcome
+contains an error; and a successful outcome does not. Consumers must not infer
+backup verification or restore-test status from unrelated command outcomes.

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/events/archivist.execution.completed.v1.schema.json",
+  "title": "ArchivistExecutionCompletedEvent",
+  "allOf": [
+    {
+      "$ref": "./envelope.v1.schema.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "eventType",
+        "eventVersion",
+        "payload"
+      ],
+      "properties": {
+        "eventType": {
+          "const": "archivist.execution.completed"
+        },
+        "eventVersion": {
+          "const": "1.0.0"
+        },
+        "payload": {
+          "$ref": "../schemas/archivist-execution.v1.schema.json"
+        }
+      }
+    }
+  ]
+}
