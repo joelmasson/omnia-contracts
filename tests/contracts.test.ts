@@ -22,6 +22,7 @@ const resourceValidators = {
   deployment: deploymentSchema,
   backup: backupSchema,
   "agent-task": agentTaskSchema,
+  "archivist-execution": ajv.getSchema(schemaId("schemas/archivist-execution.v1.schema.json"))!,
 };
 const eventRequirements = {
   "service.health.changed": [],
@@ -57,7 +58,7 @@ interface EventFixture {
 }
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
-  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 9);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 10);
   assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 23);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
