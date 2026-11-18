@@ -22,7 +22,6 @@ const resourceValidators = {
   deployment: deploymentSchema,
   backup: backupSchema,
   "agent-task": agentTaskSchema,
-  "archivist-execution": ajv.getSchema(schemaId("schemas/archivist-execution.v1.schema.json"))!,
 };
 const eventRequirements = {
   "service.health.changed": [],
