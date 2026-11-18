@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/archivist-execution.v1.schema.json",
+  "title": "ArchivistExecution",
+  "type": "object",
+  "required": [
+    "executionId",
+    "command",
+    "sourceId",
+    "startedAt",
+    "completedAt",
+    "status",
+    "stage"
+  ],
+  "properties": {
+    "executionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "command": {
+      "enum": [
+        "init",
+        "backup",
+        "verify",
+        "restore",
+        "retention-plan"
+      ]
+    },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "failure"
+      ]
+    },
+    "stage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capacity": {
+      "type": "object",
+      "required": [
+        "free",
+        "total"
+      ],
+      "properties": {
+        "free": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "retentionPolicy": {
+      "type": "object",
+      "required": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "properties": {
+        "daily": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "weekly": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "monthly": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "retentionPlanSummary": {
+      "type": "object",
+      "required": [
+        "keepCount",
+        "removeCount"
+      ],
+      "properties": {
+        "keepCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "removeCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_CONFIG",
+            "SOURCE_UNAVAILABLE",
+            "DATABASE_BACKUP_FAILED",
+            "ENCRYPTION_FAILED",
+            "AUTHENTICATION_FAILED",
+            "UPLOAD_FAILED",
+            "INSUFFICIENT_STORAGE",
+            "INTEGRITY_FAILED",
+            "RETENTION_FAILED",
+            "RESTORE_FAILED",
+            "DEPENDENCY_FAILED",
+            "EXECUTION_BUSY",
+            "REPORT_FAILED",
+            "CATALOG_FAILED",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "externalDiagnostic": {
+          "type": "object",
+          "required": [
+            "category",
+            "timedOut",
+            "summary"
+          ],
+          "properties": {
+            "executable": {
+              "enum": [
+                "restic",
+                "rclone"
+              ]
+            },
+            "exitCode": {
+              "type": "integer"
+            },
+            "category": {
+              "enum": [
+                "authentication",
+                "encryption",
+                "integrity",
+                "storage_capacity",
+                "network",
+                "timeout",
+                "remote_service",
+                "permission_or_configuration",
+                "dependency",
+                "external_command_failure"
+              ]
+            },
+            "timedOut": {
+              "type": "boolean"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
