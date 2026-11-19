@@ -7,6 +7,8 @@ const resourceNames = [
   "health-status",
   "incident",
   "deployment",
+  "deployment-request",
+  "deployment-execution",
   "backup",
   "agent-task",
   "archivist-execution",

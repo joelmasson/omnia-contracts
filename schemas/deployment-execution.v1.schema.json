@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/deployment-execution.v1.schema.json",
+  "title": "DeploymentExecution",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "deploymentId",
+    "requestId",
+    "status",
+    "adapter",
+    "requestedOperation",
+    "preflightResult",
+    "healthVerificationResult",
+    "rollback"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "1.0.0",
+      "description": "Deployment execution contract version, independent of the repository release."
+    },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "requestId": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "running", "succeeded", "failed", "cancelled"]
+    },
+    "adapter": {
+      "type": "string",
+      "enum": ["docker-compose", "node-systemd", "application-specific"]
+    },
+    "requestedOperation": { "type": "string", "enum": ["deploy", "rollback"] },
+    "workflowRun": {
+      "type": "object",
+      "required": ["repository", "runId", "url"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": true
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "preflightResult": { "type": "string", "enum": ["not_run", "passed", "failed"] },
+    "healthVerificationResult": { "type": "string", "enum": ["not_run", "passed", "failed"] },
+    "deployedVersion": { "type": "string", "minLength": 1 },
+    "deployedArtifactDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Digest of the artifact actually applied; consumers compare it with the requested artifact digest."
+    },
+    "verifiedAt": { "type": "string", "format": "date-time" },
+    "failure": {
+      "type": "object",
+      "required": ["code", "message", "reference"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 }
+      },
+      "description": "Non-secret failure details; do not include credentials or sensitive data.",
+      "additionalProperties": true
+    },
+    "rollback": {
+      "type": "object",
+      "required": ["supported", "status"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "status": {
+          "type": "string",
+          "enum": ["not_attempted", "in_progress", "succeeded", "failed", "not_available"]
+        },
+        "previousArtifact": {
+          "type": "object",
+          "required": ["reference", "digest"],
+          "properties": {
+            "reference": { "type": "string", "minLength": 1, "maxLength": 1024 },
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "additionalProperties": true
+        },
+        "outcome": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "supported": { "const": true } },
+            "required": ["supported"]
+          }
+        },
+        "required": ["rollback"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": {
+              "previousArtifact": {
+                "$ref": "#/properties/rollback/properties/previousArtifact"
+              }
+            },
+            "required": ["previousArtifact"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "supported": { "const": false } },
+            "required": ["supported"]
+          }
+        },
+        "required": ["rollback"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "status": { "const": "not_available" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": {
+              "status": { "enum": ["in_progress", "succeeded", "failed"] }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["rollback"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": {
+              "previousArtifact": {
+                "$ref": "#/properties/rollback/properties/previousArtifact"
+              }
+            },
+            "required": ["previousArtifact"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "status": { "enum": ["succeeded", "failed"] } },
+            "required": ["status"]
+          }
+        },
+        "required": ["rollback"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "outcome": { "type": "string", "minLength": 1 } },
+            "required": ["outcome"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "queued" } },
+        "required": ["status"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": { "startedAt": { "type": "string" } },
+              "required": ["startedAt"]
+            },
+            {
+              "type": "object",
+              "properties": { "completedAt": { "type": "string" } },
+              "required": ["completedAt"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "running" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "workflowRun": { "$ref": "#/properties/workflowRun" },
+          "startedAt": { "$ref": "#/properties/startedAt" }
+        },
+        "required": ["workflowRun", "startedAt"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "enum": ["succeeded", "failed", "cancelled"] } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "workflowRun": { "$ref": "#/properties/workflowRun" },
+          "startedAt": { "$ref": "#/properties/startedAt" },
+          "completedAt": { "$ref": "#/properties/completedAt" }
+        },
+        "required": ["workflowRun", "startedAt", "completedAt"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "succeeded" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "preflightResult": { "const": "passed" },
+          "healthVerificationResult": { "const": "passed" },
+          "deployedVersion": { "$ref": "#/properties/deployedVersion" },
+          "deployedArtifactDigest": { "$ref": "#/properties/deployedArtifactDigest" },
+          "verifiedAt": { "$ref": "#/properties/verifiedAt" }
+        },
+        "required": ["deployedVersion", "deployedArtifactDigest", "verifiedAt"],
+        "not": {
+          "type": "object",
+          "properties": { "failure": { "$ref": "#/properties/failure" } },
+          "required": ["failure"]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "failed" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": { "failure": { "$ref": "#/properties/failure" } },
+        "required": ["failure"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requestedOperation": { "const": "rollback" },
+          "status": { "const": "succeeded" }
+        },
+        "required": ["requestedOperation", "status"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "status": { "const": "succeeded" } },
+            "required": ["status"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requestedOperation": { "const": "deploy" },
+          "status": { "const": "succeeded" }
+        },
+        "required": ["requestedOperation", "status"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "status": { "const": "not_attempted" } },
+            "required": ["status"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requestedOperation": { "const": "rollback" },
+          "status": { "enum": ["queued", "running", "failed", "cancelled"] }
+        },
+        "required": ["requestedOperation", "status"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "status": { "not": { "const": "succeeded" } } }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,28 @@
+{
+  "contractVersion": "1.0.0",
+  "deploymentId": "deployment-magos-prod-20261118-001",
+  "requestId": "request-omnia-001",
+  "status": "succeeded",
+  "adapter": "docker-compose",
+  "requestedOperation": "deploy",
+  "workflowRun": {
+    "repository": "joelmasson/omnia-magos",
+    "runId": "123456789",
+    "url": "https://github.com/joelmasson/omnia-magos/actions/runs/123456789"
+  },
+  "startedAt": "2026-11-18T18:01:00Z",
+  "completedAt": "2026-11-18T18:04:00Z",
+  "preflightResult": "passed",
+  "healthVerificationResult": "passed",
+  "deployedVersion": "2026.11.18",
+  "deployedArtifactDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "verifiedAt": "2026-11-18T18:03:30Z",
+  "rollback": {
+    "supported": true,
+    "status": "not_attempted",
+    "previousArtifact": {
+      "reference": "ghcr.io/joelmasson/omnia-magos",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  }
+}

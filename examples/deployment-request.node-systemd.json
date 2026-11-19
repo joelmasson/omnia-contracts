@@ -1,0 +1,37 @@
+{
+  "contractVersion": "1.0.0",
+  "deploymentId": "deployment-archivist-stage-20261118-001",
+  "service": {
+    "id": "archivist",
+    "repository": "joelmasson/omnia-archivist"
+  },
+  "environment": {
+    "name": "staging",
+    "tier": "staging"
+  },
+  "target": "archivist-host-group",
+  "artifact": {
+    "type": "archive",
+    "reference": "s3://omnia-artifacts/archivist/2026.11.18.tar.gz",
+    "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "sourceRepository": "joelmasson/omnia-archivist",
+    "sourceCommit": "0123456789abcdef0123456789abcdef01234567",
+    "releaseVersion": "2026.11.18"
+  },
+  "adapter": "node-systemd",
+  "requestedOperation": "deploy",
+  "authorization": {
+    "requestId": "request-archivist-001",
+    "initiatedBy": "operator:joel",
+    "approvalRequired": false
+  },
+  "migration": {
+    "migrationRequired": false,
+    "backwardCompatible": true,
+    "explicitApprovalRequired": false,
+    "backupRestorePreflightRequired": false
+  },
+  "rollback": {
+    "supported": false
+  }
+}

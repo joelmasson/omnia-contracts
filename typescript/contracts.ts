@@ -1,5 +1,114 @@
 /* Generated from canonical JSON Schema by npm run generate. Do not edit. */
 
+export type DeploymentRequest = {
+  [k: string]: unknown;
+} & {
+  /**
+   * Deployment request contract version, independent of the repository release.
+   */
+  contractVersion: "1.0.0";
+  deploymentId: string;
+  service: {
+    id: string;
+    repository: string;
+    [k: string]: unknown;
+  };
+  environment: {
+    name: string;
+    tier: "development" | "test" | "staging" | "production";
+    [k: string]: unknown;
+  };
+  /**
+   * Logical deployment target, not a mandated host or container.
+   */
+  target: string;
+  artifact: {
+    type: "container-image" | "node-package" | "archive" | "application-specific";
+    /**
+     * Artifact locator; the required digest pins the immutable artifact contents.
+     */
+    reference: string;
+    digest: string;
+    /**
+     * GitHub repository containing sourceCommit; may differ from the deployment repository.
+     */
+    sourceRepository: string;
+    sourceCommit: string;
+    releaseVersion: string;
+    [k: string]: unknown;
+  };
+  /**
+   * Deployment mechanism adapter; service-specific behavior is not encoded in this contract.
+   */
+  adapter: "docker-compose" | "node-systemd" | "application-specific";
+  /**
+   * Optional identifier for an application-specific adapter.
+   */
+  adapterName?: string;
+  requestedOperation: "deploy" | "rollback";
+  authorization: {
+    requestId: string;
+    initiatedBy: string;
+    approvalRequired: boolean;
+    approvedBy?: string;
+    approvedAt?: string;
+    /**
+     * Opaque locator for an authoritative approval record; the locator is not proof of authorization.
+     */
+    approvalReference?: string;
+    /**
+     * SHA-256 of the JCS-canonicalized approval scope defined in the Deployment Domain documentation.
+     */
+    approvedScopeDigest?: string;
+    [k: string]: unknown;
+  };
+  migration: {
+    migrationRequired: boolean;
+    backwardCompatible: boolean;
+    explicitApprovalRequired: boolean;
+    backupRestorePreflightRequired: boolean;
+    [k: string]: unknown;
+  };
+  rollback: {
+    supported: boolean;
+    previousArtifact?: PreviousArtifact;
+    [k: string]: unknown;
+  };
+  [k: string]: unknown;
+};
+export type DeploymentExecution = {
+  [k: string]: unknown;
+} & {
+  /**
+   * Deployment execution contract version, independent of the repository release.
+   */
+  contractVersion: "1.0.0";
+  deploymentId: string;
+  requestId: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  adapter: "docker-compose" | "node-systemd" | "application-specific";
+  requestedOperation: "deploy" | "rollback";
+  workflowRun?: WorkflowRun;
+  startedAt?: string;
+  completedAt?: string;
+  preflightResult: "not_run" | "passed" | "failed";
+  healthVerificationResult: "not_run" | "passed" | "failed";
+  deployedVersion?: string;
+  /**
+   * Digest of the artifact actually applied; consumers compare it with the requested artifact digest.
+   */
+  deployedArtifactDigest?: string;
+  verifiedAt?: string;
+  failure?: Failure;
+  rollback: {
+    supported: boolean;
+    status: "not_attempted" | "in_progress" | "succeeded" | "failed" | "not_available";
+    previousArtifact?: PreviousArtifact1;
+    outcome?: string;
+    [k: string]: unknown;
+  };
+  [k: string]: unknown;
+};
 /**
  * Never include credentials, encryption keys or other secrets in this object or its extension fields.
  */
@@ -34,7 +143,7 @@ export type Backup = {
   verifiedAt?: string;
   verificationStatus: "pending" | "verified" | "failed" | "not_requested";
   status: "started" | "completed" | "failed";
-  failure?: Failure;
+  failure?: Failure1;
   [k: string]: unknown;
 };
 /**
@@ -157,7 +266,7 @@ export type BackupFailedEvent = EventEnvelope & {
   payload: Backup & {
     status: "failed";
     verificationStatus: "not_requested";
-    failure: Failure;
+    failure: Failure1;
     [k: string]: unknown;
   };
   [k: string]: unknown;
@@ -185,7 +294,7 @@ export type BackupVerificationFailedEvent = EventEnvelope & {
     status: "completed";
     verificationStatus: "failed";
     completedAt: string;
-    failure: Failure;
+    failure: Failure1;
     [k: string]: unknown;
   };
   [k: string]: unknown;
@@ -400,6 +509,8 @@ export interface ContractMap {
   healthStatus: HealthStatus;
   incident: Incident;
   deployment: Deployment;
+  deploymentRequest: DeploymentRequest;
+  deploymentExecution: DeploymentExecution;
   backup: Backup;
   agentTask: AgentTask;
   archivistExecution: ArchivistExecution;
@@ -486,7 +597,32 @@ export interface Deployment {
   rollbackAvailable: boolean;
   [k: string]: unknown;
 }
+export interface PreviousArtifact {
+  reference: string;
+  digest: string;
+  [k: string]: unknown;
+}
+export interface WorkflowRun {
+  repository: string;
+  runId: string;
+  url: string;
+  [k: string]: unknown;
+}
+/**
+ * Non-secret failure details; do not include credentials or sensitive data.
+ */
 export interface Failure {
+  code: string;
+  message: string;
+  reference: string;
+  [k: string]: unknown;
+}
+export interface PreviousArtifact1 {
+  reference: string;
+  digest: string;
+  [k: string]: unknown;
+}
+export interface Failure1 {
   code: string;
   /**
    * Safe diagnostic text; must not contain credentials or encryption secrets.

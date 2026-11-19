@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/deployment-request.v1.schema.json",
+  "title": "DeploymentRequest",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "deploymentId",
+    "service",
+    "environment",
+    "target",
+    "artifact",
+    "adapter",
+    "requestedOperation",
+    "authorization",
+    "migration",
+    "rollback"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "1.0.0",
+      "description": "Deployment request contract version, independent of the repository release."
+    },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "service": {
+      "type": "object",
+      "required": ["id", "repository"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "environment": {
+      "type": "object",
+      "required": ["name", "tier"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "tier": {
+          "type": "string",
+          "enum": ["development", "test", "staging", "production"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Logical deployment target, not a mandated host or container."
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["type", "reference", "digest", "sourceRepository", "sourceCommit", "releaseVersion"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["container-image", "node-package", "archive", "application-specific"]
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Artifact locator; the required digest pins the immutable artifact contents."
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "sourceRepository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "description": "GitHub repository containing sourceCommit; may differ from the deployment repository."
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "releaseVersion": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "adapter": {
+      "type": "string",
+      "enum": ["docker-compose", "node-systemd", "application-specific"],
+      "description": "Deployment mechanism adapter; service-specific behavior is not encoded in this contract."
+    },
+    "adapterName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional identifier for an application-specific adapter."
+    },
+    "requestedOperation": {
+      "type": "string",
+      "enum": ["deploy", "rollback"]
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["requestId", "initiatedBy", "approvalRequired"],
+      "properties": {
+        "requestId": { "type": "string", "minLength": 1 },
+        "initiatedBy": { "type": "string", "minLength": 1 },
+        "approvalRequired": { "type": "boolean" },
+        "approvedBy": { "type": "string", "minLength": 1 },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "approvalReference": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque locator for an authoritative approval record; the locator is not proof of authorization."
+        },
+        "approvedScopeDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA-256 of the JCS-canonicalized approval scope defined in the Deployment Domain documentation."
+        }
+      },
+      "additionalProperties": true
+    },
+    "migration": {
+      "type": "object",
+      "required": [
+        "migrationRequired",
+        "backwardCompatible",
+        "explicitApprovalRequired",
+        "backupRestorePreflightRequired"
+      ],
+      "properties": {
+        "migrationRequired": { "type": "boolean" },
+        "backwardCompatible": { "type": "boolean" },
+        "explicitApprovalRequired": { "type": "boolean" },
+        "backupRestorePreflightRequired": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "rollback": {
+      "type": "object",
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "previousArtifact": {
+          "type": "object",
+          "required": ["reference", "digest"],
+          "properties": {
+            "reference": { "type": "string", "minLength": 1, "maxLength": 1024 },
+            "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "authorization": {
+            "type": "object",
+            "properties": { "approvalRequired": { "const": true } },
+            "required": ["approvalRequired"]
+          }
+        },
+        "required": ["authorization"]
+      },
+      "then": {
+        "properties": {
+          "authorization": {
+            "type": "object",
+            "properties": {
+              "approvedBy": { "type": "string", "minLength": 1 },
+              "approvedAt": { "type": "string", "format": "date-time" },
+              "approvalReference": { "type": "string", "minLength": 1 },
+              "approvedScopeDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["approvedBy", "approvedAt", "approvalReference", "approvedScopeDigest"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": { "supported": { "const": true } },
+            "required": ["supported"]
+          }
+        },
+        "required": ["rollback"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": {
+              "previousArtifact": {
+                "$ref": "#/properties/rollback/properties/previousArtifact"
+              }
+            },
+            "required": ["previousArtifact"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "environment": {
+            "type": "object",
+            "properties": { "tier": { "const": "production" } },
+            "required": ["tier"]
+          }
+        },
+        "required": ["environment"]
+      },
+      "then": {
+        "properties": {
+          "authorization": {
+            "type": "object",
+            "properties": {
+              "approvalRequired": { "const": true },
+              "approvedBy": { "type": "string", "minLength": 1 },
+              "approvedAt": { "type": "string", "format": "date-time" },
+              "approvalReference": { "type": "string", "minLength": 1 },
+              "approvedScopeDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": [
+              "approvedBy",
+              "approvedAt",
+              "approvalReference",
+              "approvedScopeDigest",
+              "approvalRequired"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "migration": {
+            "type": "object",
+            "properties": { "migrationRequired": { "const": true } },
+            "required": ["migrationRequired"]
+          }
+        },
+        "required": ["migration"]
+      },
+      "then": {
+        "properties": {
+          "migration": {
+            "type": "object",
+            "properties": { "explicitApprovalRequired": { "const": true } }
+          },
+          "authorization": {
+            "type": "object",
+            "properties": {
+              "approvalRequired": { "const": true },
+              "approvedBy": { "type": "string", "minLength": 1 },
+              "approvedAt": { "type": "string", "format": "date-time" },
+              "approvalReference": { "type": "string", "minLength": 1 },
+              "approvedScopeDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": [
+              "approvedBy",
+              "approvedAt",
+              "approvalReference",
+              "approvedScopeDigest",
+              "approvalRequired"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "requestedOperation": { "const": "rollback" } },
+        "required": ["requestedOperation"]
+      },
+      "then": {
+        "properties": {
+          "rollback": {
+            "type": "object",
+            "properties": {
+              "supported": { "const": true },
+              "previousArtifact": {
+                "type": "object",
+                "required": ["reference", "digest"],
+                "properties": {
+                  "reference": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+                }
+              }
+            },
+            "required": ["previousArtifact", "supported"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "migration": {
+            "type": "object",
+            "properties": { "migrationRequired": { "const": false } },
+            "required": ["migrationRequired"]
+          }
+        },
+        "required": ["migration"]
+      },
+      "then": {
+        "properties": {
+          "migration": {
+            "type": "object",
+            "properties": {
+              "backwardCompatible": { "const": true },
+              "explicitApprovalRequired": { "const": false },
+              "backupRestorePreflightRequired": { "const": false }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "adapter": { "const": "application-specific" } },
+        "required": ["adapter"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "adapterName": { "type": "string", "minLength": 1 }
+        },
+        "required": ["adapterName"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

@@ -9,14 +9,14 @@ The repository is initially empty of application code by design.
 
 | Location | Contents |
 | --- | --- |
-| [schemas/](./schemas/) | Domain, ARCHIVIST execution, and Ice IQ feed contracts |
+| [schemas/](./schemas/) | Domain, Deployment Domain, ARCHIVIST execution, and Ice IQ feed contracts |
 | [events/](./events/) | Envelope, job and service event contracts, and a supported-event union |
 | [openapi/](./openapi/) | Optional health, event, and Ice IQ feed API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
 | [examples/](./examples/) | One JSON fixture per resource/event and a runnable consumer |
 | [tests/](./tests/) | Schema, fixture, negative, OpenAPI and TypeScript checks |
 | [.github/workflows/](./.github/workflows/) | Validation on Node.js 22 and 24 |
-| [docs/adr/](./docs/adr/) | Ownership and compatibility decision |
+| [docs/adr/](./docs/adr/) | Ownership, compatibility, and Deployment Domain decisions |
 
 ## Local development
 
@@ -98,8 +98,10 @@ if (event.eventType === "backup.completed") {
   `healthy`, does not establish current service health. Stale observations must
   remain distinguishable from current observations.
 - Incident severity: `critical`, `high`, `medium`, `low`, `info`; incident status:
-  `open`, `acknowledged`, `resolved`. Deployment/backup status: `started`,
-  `completed`, `failed`. Backup type is `full` (all selected data),
+  `open`, `acknowledged`, `resolved`. The legacy MAGOS deployment snapshot and
+  backup status use `started`, `completed`, `failed`. Deployment Domain execution
+  status is separately `queued`, `running`, `succeeded`, `failed`, `cancelled`.
+  Backup type is `full` (all selected data),
   `incremental` (changes since the preceding backup), `differential` (changes
   since the latest full backup) or `snapshot` (a point-in-time image). Encryption
   algorithms are `AES-256-GCM` (authenticated AES-GCM) or `ChaCha20-Poly1305`
@@ -291,7 +293,8 @@ Receivers should deduplicate `eventId` before applying side effects.
 | --- | --- |
 | Registration and health | NOOSPHERE, with every service contributing its own observations |
 | Incident | Reporting service owns its incident; NOOSPHERE and MAGOS coordinate vocabulary |
-| Deployment | MAGOS |
+| Existing deployment snapshot and lifecycle events | MAGOS |
+| Deployment request and execution contracts | OMNIA Deployment Domain; each application repository owns its workflow and adapter |
 | Backup | ARCHIVIST |
 | Agent task | SERVITOR |
 | Envelope, compatibility and OpenAPI conventions | OMNIA platform maintainers with affected consumers |
@@ -302,7 +305,74 @@ depends on MAGOS** for startup, health probes, supervision or local recovery.
 Registration is a data contract, not a mandated central registry or registration
 HTTP API. Capability paths do not require every service to implement every path.
 Each service retains its own database, runtime, pipeline and release cadence.
-See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md).
+See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md) and
+[ADR 0002](./docs/adr/0002-omnia-deployment-domain.md).
+
+## Deployment Domain contracts
+
+The versioned [deployment request](./schemas/deployment-request.v1.schema.json)
+and [execution status](./schemas/deployment-execution.v1.schema.json) are
+separate from the existing MAGOS-owned
+[deployment snapshot](./schemas/deployment.v1.schema.json) and
+`deployment.started`, `deployment.completed`, and `deployment.failed` events.
+The new schemas use `contractVersion: "1.0.0"` and `v1` identifiers; consumers
+must reject unsupported versions and opt into these contracts explicitly.
+They are additive and do not alter the accepted shape of existing deployment
+records, events, or event versions.
+
+Requests identify a service/repository, environment name and tier, logical
+target, requested operation, adapter, artifact locator plus mandatory SHA-256
+digest, source repository and commit, release version, authorization, migration
+safeguards, and rollback metadata. Source repository identifies where the
+commit came from and need not be the deployment repository. The environment
+tier is an explicit enum so custom names such as `prod` cannot bypass production
+approval requirements.
+
+Production or otherwise approval-required requests carry an approval record
+reference and a SHA-256 approval-scope digest in addition to the claimed
+approver and timestamp. These values are audit metadata, not proof: a trusted
+workflow must authenticate the actor, retrieve and validate the approval record,
+and verify the scope digest before deployment. The digest covers the RFC 8785
+JSON Canonicalization Scheme representation of the full request with
+`authorization` replaced by its `requestId`, `initiatedBy`, and
+`approvalRequired` fields. Thus approval binds to the request's artifact,
+service, environment, target, operation, migration, rollback and extension
+fields. JSON Schema cannot verify the approval provider, human identity,
+permissions, or the digest's correspondence to the request.
+
+Database migrations require explicit approval; requests also declare
+backward-compatibility and backup/restore preflight requirements. Execution
+records identify the GitHub Actions run and lifecycle status, preflight and
+health verification, deployed version and actual deployed artifact digest,
+failures, and application rollback outcome. A consumer must compare successful
+execution identity, workflow repository and deployed digest with the request
+using `isDeploymentExecutionConsistentWithRequest`; the workflow run URL alone
+is not artifact provenance. A successful rollback operation requires a
+successful rollback outcome and must attest the prior artifact digest.
+Application rollback does not roll back database state.
+
+The adapter vocabulary includes `docker-compose`, `node-systemd`, and
+`application-specific`; deployment targets remain logical and do not prescribe
+containers or hosts. Initial examples cover MAGOS and Ice IQ's current Docker
+Compose model and ARCHIVIST's Node.js/systemd model; Operations MCP and
+STRATEGIUM deployment models remain to be established. These are contract
+examples only: this repository adds no deployment workflow, credentials,
+runner, infrastructure configuration, or execution service.
+
+The generated [TypeScript contracts](./typescript/contracts.ts) and Ajv-backed
+[validators](./typescript/validators.ts) derive from the canonical schemas.
+JSON Schema validates an individual execution snapshot; consumers must also
+enforce lifecycle transitions: `queued` → `running` or `cancelled`, and
+`running` → `succeeded`, `failed`, or `cancelled`. Terminal states do not
+transition; retries use a new deployment identity. The validator helper
+`isValidDeploymentStatusTransition` exposes this rule.
+
+The current request and execution v1 schemas are pre-adoption drafts. Their
+approval-evidence reference/scope digest, source-repository identity and
+successful deployed-artifact digest are required for new consumers. Do not mix
+these draft requirements with an earlier untagged snapshot; update validators
+and producers together before adoption. Once adopted or released, incompatible
+changes follow the major-version coexistence and migration policy below.
 
 ## Versioning and contribution standards
 
@@ -312,6 +382,12 @@ See [ADR 0001](./docs/adr/0001-schema-ownership-and-compatibility.md).
 - File suffix `v1` and `$id` identify a schema major. Never repurpose an existing
   identifier for an incompatible contract, even during draft development.
   New incompatible schemas/events coexist under `v2`, with a migration window.
+- Deployment request and execution wire versions are independent of repository
+  release tags. Their current `contractVersion` is `1.0.0`; incompatible changes
+  require new `v2` schema identifiers while v1 remains available during consumer
+  migration. Optional additive fields follow the existing extensible-schema
+  policy; required-field additions and constraint or enum changes require
+  compatibility review.
 - An optional additive property is generally a minor change because consumers
   of existing extensible schemas tolerate unknown fields. The approved future
   job payloads are strict, so additive payload fields require explicit

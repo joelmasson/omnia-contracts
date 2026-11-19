@@ -1,0 +1,45 @@
+{
+  "contractVersion": "1.0.0",
+  "deploymentId": "deployment-magos-prod-20261118-001",
+  "service": {
+    "id": "magos",
+    "repository": "joelmasson/omnia-magos"
+  },
+  "environment": {
+    "name": "production",
+    "tier": "production"
+  },
+  "target": "omnia-production",
+  "artifact": {
+    "type": "container-image",
+    "reference": "ghcr.io/joelmasson/omnia-magos",
+    "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "sourceRepository": "joelmasson/omnia-magos",
+    "sourceCommit": "0123456789abcdef0123456789abcdef01234567",
+    "releaseVersion": "2026.11.18"
+  },
+  "adapter": "docker-compose",
+  "requestedOperation": "deploy",
+  "authorization": {
+    "requestId": "request-omnia-001",
+    "initiatedBy": "operator:joel",
+    "approvalRequired": true,
+    "approvedBy": "operator:reviewer",
+    "approvedAt": "2026-11-18T18:00:00Z",
+    "approvalReference": "approval-record-001",
+    "approvedScopeDigest": "sha256:b522880c7421918976884193f3d6c81c820924269d14e2371cf2299410500b77"
+  },
+  "migration": {
+    "migrationRequired": false,
+    "backwardCompatible": true,
+    "explicitApprovalRequired": false,
+    "backupRestorePreflightRequired": false
+  },
+  "rollback": {
+    "supported": true,
+    "previousArtifact": {
+      "reference": "ghcr.io/joelmasson/omnia-magos",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  }
+}

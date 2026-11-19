@@ -119,6 +119,8 @@
       "HealthStatus": { "$ref": "../schemas/health-status.v1.schema.json" },
       "Incident": { "$ref": "../schemas/incident.v1.schema.json" },
       "Deployment": { "$ref": "../schemas/deployment.v1.schema.json" },
+      "DeploymentRequest": { "$ref": "../schemas/deployment-request.v1.schema.json" },
+      "DeploymentExecution": { "$ref": "../schemas/deployment-execution.v1.schema.json" },
       "Backup": { "$ref": "../schemas/backup.v1.schema.json" },
       "AgentTask": { "$ref": "../schemas/agent-task.v1.schema.json" },
       "EventFeedQuery": { "$ref": "../schemas/event-feed-query.v1.schema.json" },

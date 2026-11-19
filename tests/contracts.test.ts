@@ -9,10 +9,15 @@ import {
   healthStatusSchema,
   incidentSchema,
   deploymentSchema,
+  deploymentRequestSchema,
+  deploymentExecutionSchema,
+  isDeploymentExecutionConsistentWithRequest,
+  isValidDeploymentStatusTransition,
   backupSchema,
   agentTaskSchema,
   eventSchema,
 } from "../typescript/validators.js";
+import type { DeploymentExecution, DeploymentRequest } from "../typescript/contracts.js";
 import { readJson, root, schemaFiles, schemas, schemaId } from "../typescript/catalog.js";
 
 const resourceValidators = {
@@ -20,6 +25,8 @@ const resourceValidators = {
   "health-status": healthStatusSchema,
   incident: incidentSchema,
   deployment: deploymentSchema,
+  "deployment-request": deploymentRequestSchema,
+  "deployment-execution": deploymentExecutionSchema,
   backup: backupSchema,
   "agent-task": agentTaskSchema,
 };
@@ -57,7 +64,7 @@ interface EventFixture {
 }
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
-  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 10);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 12);
   assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 23);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
@@ -87,6 +94,207 @@ for (const [name, zodValidator] of Object.entries(resourceValidators)) {
     assert.equal(zodValidator.safeParse([]).success, false);
   });
 }
+
+test("deployment requests enforce version, immutable artifact identity and authorization safeguards", () => {
+  const request = readJson<DeploymentRequest>("examples/deployment-request.json");
+  const validate = ajv.getSchema(schemaId("schemas/deployment-request.v1.schema.json"))!;
+  assert.equal(validate(request), true, ajv.errorsText(validate.errors));
+  assert.equal(
+    deploymentRequestSchema.parse(readJson("examples/deployment-request.node-systemd.json")).adapter,
+    "node-systemd",
+  );
+
+  for (const change of [
+    { contractVersion: "2.0.0" },
+    { deploymentId: "deployment with spaces" },
+    { artifact: { ...request.artifact, digest: "sha256:mutable-tag" } },
+    { artifact: { ...request.artifact, reference: "" } },
+    { artifact: { ...request.artifact, sourceRepository: "not-a-repository" } },
+    { environment: { name: "prod", tier: "other" } },
+    {
+      environment: { name: "prod", tier: "production" },
+      authorization: { ...request.authorization, approvalRequired: false },
+    },
+    {
+      authorization: {
+        requestId: "request-omnia-001",
+        initiatedBy: "operator:joel",
+        approvalRequired: true,
+        approvedAt: "2026-11-18T18:00:00Z",
+        approvedBy: "operator:reviewer",
+        approvalReference: "approval-record-001",
+      },
+    },
+    {
+      migration: {
+        migrationRequired: true,
+        backwardCompatible: false,
+        explicitApprovalRequired: false,
+        backupRestorePreflightRequired: true,
+      },
+    },
+    {
+      migration: {
+        migrationRequired: false,
+        backwardCompatible: false,
+        explicitApprovalRequired: false,
+        backupRestorePreflightRequired: false,
+      },
+    },
+    {
+      migration: {
+        migrationRequired: false,
+        backwardCompatible: true,
+        explicitApprovalRequired: false,
+        backupRestorePreflightRequired: true,
+      },
+    },
+    { adapter: "application-specific" },
+    {
+      requestedOperation: "rollback",
+      rollback: { supported: false },
+    },
+  ]) {
+    const invalid = { ...request, ...change };
+    assert.equal(validate(invalid), false, JSON.stringify(change));
+    assert.equal(deploymentRequestSchema.safeParse(invalid).success, false);
+  }
+
+  const migration = {
+    ...request,
+    migration: {
+      migrationRequired: true,
+      backwardCompatible: false,
+      explicitApprovalRequired: true,
+      backupRestorePreflightRequired: true,
+    },
+  };
+  assert.equal(validate(migration), true, ajv.errorsText(validate.errors));
+  const systemd = readJson<Record<string, unknown>>("examples/deployment-request.node-systemd.json");
+  assert.equal(deploymentRequestSchema.safeParse(systemd).success, true);
+});
+
+test("deployment execution validates lifecycle state and rollback metadata", () => {
+  const execution = readJson<DeploymentExecution>("examples/deployment-execution.json");
+  const validate = ajv.getSchema(schemaId("schemas/deployment-execution.v1.schema.json"))!;
+  assert.equal(validate(execution), true, ajv.errorsText(validate.errors));
+
+  const queued = {
+    ...execution,
+    status: "queued",
+    preflightResult: "not_run",
+    healthVerificationResult: "not_run",
+  };
+  delete queued.workflowRun;
+  delete queued.startedAt;
+  delete queued.completedAt;
+  delete queued.deployedVersion;
+  delete queued.verifiedAt;
+  assert.equal(validate(queued), true, ajv.errorsText(validate.errors));
+
+  for (const change of [
+    { contractVersion: "2.0.0" },
+    { status: "started" },
+    { status: "succeeded", healthVerificationResult: "not_run" },
+    { status: "succeeded", deployedArtifactDigest: undefined },
+    { status: "succeeded", deployedArtifactDigest: "sha256:mutable-tag" },
+    {
+      requestedOperation: "rollback",
+      rollback: { ...execution.rollback, status: "failed", outcome: "Rollback failed" },
+    },
+    {
+      requestedOperation: "deploy",
+      rollback: { ...execution.rollback, status: "failed", outcome: "Rollback failed" },
+    },
+    {
+      requestedOperation: "rollback",
+      status: "failed",
+      rollback: { ...execution.rollback, status: "succeeded", outcome: "Rollback succeeded" },
+    },
+    { status: "failed", failure: undefined },
+    { rollback: { supported: true, status: "succeeded" } },
+    { rollback: { supported: true, status: "not_attempted" } },
+    { rollback: { supported: false, status: "not_attempted" } },
+  ]) {
+    assert.equal(validate({ ...execution, ...change }), false, JSON.stringify(change));
+  }
+
+  const failed = {
+    ...execution,
+    status: "failed",
+    preflightResult: "failed",
+    healthVerificationResult: "not_run",
+    failure: { code: "preflight_failed", message: "Preflight did not pass", reference: "run-log-001" },
+  };
+  delete failed.deployedVersion;
+  delete failed.verifiedAt;
+  assert.equal(validate(failed), true, ajv.errorsText(validate.errors));
+});
+
+test("execution records attest the request identity and deployed artifact digest", () => {
+  const request = readJson<DeploymentRequest>("examples/deployment-request.json");
+  const execution = readJson<DeploymentExecution>("examples/deployment-execution.json");
+  assert.equal(isDeploymentExecutionConsistentWithRequest(request, execution), true);
+
+  const wrongDigest = deploymentExecutionSchema.parse({
+    ...execution,
+    deployedArtifactDigest: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  });
+  assert.equal(isDeploymentExecutionConsistentWithRequest(request, wrongDigest), false);
+
+  const wrongWorkflow = deploymentExecutionSchema.parse({
+    ...execution,
+    workflowRun: { ...execution.workflowRun, repository: "another-org/another-repo" },
+  });
+  assert.equal(isDeploymentExecutionConsistentWithRequest(request, wrongWorkflow), false);
+
+  const rollbackRequest = deploymentRequestSchema.parse({
+    ...request,
+    requestedOperation: "rollback",
+  });
+  const rollbackExecution = deploymentExecutionSchema.parse({
+    ...execution,
+    requestedOperation: "rollback",
+    deployedArtifactDigest: request.rollback.previousArtifact?.digest,
+    rollback: {
+      ...execution.rollback,
+      status: "succeeded",
+      outcome: "Previous application artifact restored and verified",
+    },
+  });
+  assert.equal(isDeploymentExecutionConsistentWithRequest(rollbackRequest, rollbackExecution), true);
+  assert.equal(
+    isDeploymentExecutionConsistentWithRequest(
+      rollbackRequest,
+      deploymentExecutionSchema.parse({
+        ...rollbackExecution,
+        deployedArtifactDigest: request.artifact.digest,
+      }),
+    ),
+    false,
+  );
+});
+
+test("deployment status transition helper rejects skipped and terminal transitions", () => {
+  assert.equal(isValidDeploymentStatusTransition("queued", "running"), true);
+  assert.equal(isValidDeploymentStatusTransition("queued", "cancelled"), true);
+  assert.equal(isValidDeploymentStatusTransition("running", "succeeded"), true);
+  assert.equal(isValidDeploymentStatusTransition("running", "failed"), true);
+  assert.equal(isValidDeploymentStatusTransition("queued", "succeeded"), false);
+  assert.equal(isValidDeploymentStatusTransition("succeeded", "running"), false);
+  assert.equal(isValidDeploymentStatusTransition("failed", "cancelled"), false);
+});
+
+test("legacy MAGOS deployment schemas and events remain compatible", () => {
+  const deployment = readJson<Record<string, unknown>>("examples/deployment.json");
+  const started = readJson<EventFixture>("examples/events/deployment.started.json");
+  const legacyDeployment = ajv.getSchema(schemaId("schemas/deployment.v1.schema.json"))!;
+  const legacyEvent = ajv.getSchema(schemaId("events/deployment.started.v1.schema.json"))!;
+  assert.equal(legacyDeployment(deployment), true);
+  assert.equal(legacyEvent(started), true);
+  assert.equal(deploymentSchema.safeParse(deployment).success, true);
+  assert.equal(eventSchema.safeParse(started).success, true);
+});
 
 test("every declared event has exactly one fixture and union membership", () => {
   const expected = Object.keys(eventRequirements).sort();
