@@ -64,7 +64,7 @@ interface EventFixture {
 }
 
 test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolvable local refs", () => {
-  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 12);
+  assert.equal(schemaFiles.filter((file) => file.startsWith("schemas/")).length, 13);
   assert.equal(schemaFiles.filter((file) => file.startsWith("events/")).length, 23);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const [index, schema] of schemas.entries()) {
@@ -72,6 +72,61 @@ test("all canonical schemas are valid 2020-12 schemas with unique IDs and resolv
     assert.equal(schema.$id, schemaId(schemaFiles[index]));
     assert.ok(ajv.validateSchema(schema), ajv.errorsText());
     assert.ok(ajv.getSchema(schema.$id), `Must compile offline: ${schema.$id}`);
+  }
+});
+
+test("SERVITOR health profile constrains HealthStatus and rejects unreviewed fields", () => {
+  const report = readJson<Record<string, unknown>>("examples/servitor-health.json");
+  const profile = ajv.getSchema(schemaId("schemas/servitor-health.v1.schema.json"))!;
+  const base = ajv.getSchema(schemaId("schemas/health-status.v1.schema.json"))!;
+  assert.equal(base(report), true, ajv.errorsText(base.errors));
+  assert.equal(profile(report), true, ajv.errorsText(profile.errors));
+  const withoutLastSuccessfulCheck = { ...report };
+  delete withoutLastSuccessfulCheck.lastSuccessfulCheck;
+  assert.equal(base(withoutLastSuccessfulCheck), true, "Base HealthStatus keeps this field optional");
+  assert.equal(profile(withoutLastSuccessfulCheck), false, "SERVITOR profile requires lastSuccessfulCheck");
+
+  const withUnknownRootField = { ...report, futureField: true };
+  assert.equal(base(withUnknownRootField), true, "Base HealthStatus remains extensible");
+  assert.equal(profile(withUnknownRootField), false, "SERVITOR profile rejects unknown root fields");
+  const withUnknownCheckField = {
+    ...report,
+    checks: [{ name: "operationsMcp", status: "healthy", futureCheckField: "value" }],
+  };
+  assert.equal(base(withUnknownCheckField), true, "Base health checks remain extensible");
+  assert.equal(profile(withUnknownCheckField), false, "SERVITOR profile rejects unknown check fields");
+
+  for (const invalid of [
+    { ...report, serviceId: "NOOSPHERE" },
+    { ...report, status: "degraded" },
+    { ...report, details: { message: "unreviewed detail" } },
+    { ...report, checks: [] },
+    { ...report, checks: [...(report.checks as object[]), { name: "extra", status: "healthy" }] },
+    {
+      ...report,
+      checks: [{ name: "operationsMcp", status: "healthy", details: { token: "secret" } }],
+    },
+    {
+      ...report,
+      checks: [{ name: "database", status: "healthy" }],
+    },
+    {
+      ...report,
+      status: "healthy",
+      checks: [{ name: "operationsMcp", status: "unknown" }],
+    },
+    {
+      ...report,
+      status: "unhealthy",
+      checks: [{ name: "operationsMcp", status: "healthy" }],
+    },
+  ]) {
+    assert.equal(profile(invalid), false, JSON.stringify(invalid));
+  }
+
+  for (const status of ["unhealthy", "unknown"]) {
+    const valid = { ...report, status, checks: [{ name: "operationsMcp", status }] };
+    assert.equal(profile(valid), true, JSON.stringify(profile.errors));
   }
 });
 

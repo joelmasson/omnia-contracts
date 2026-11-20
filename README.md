@@ -9,7 +9,7 @@ The repository is initially empty of application code by design.
 
 | Location | Contents |
 | --- | --- |
-| [schemas/](./schemas/) | Domain, Deployment Domain, ARCHIVIST execution, and Ice IQ feed contracts |
+| [schemas/](./schemas/) | Domain, SERVITOR health, Deployment Domain, ARCHIVIST execution, and Ice IQ feed contracts |
 | [events/](./events/) | Envelope, job and service event contracts, and a supported-event union |
 | [openapi/](./openapi/) | Optional health, event, and Ice IQ feed API capabilities |
 | [typescript/](./typescript/) | Generated types, generation tooling and Node.js Zod adapter examples |
@@ -17,6 +17,7 @@ The repository is initially empty of application code by design.
 | [tests/](./tests/) | Schema, fixture, negative, OpenAPI and TypeScript checks |
 | [.github/workflows/](./.github/workflows/) | Validation on Node.js 22 and 24 |
 | [docs/adr/](./docs/adr/) | Ownership, compatibility, and Deployment Domain decisions |
+| [docs/servitor-health-profile.md](./docs/servitor-health-profile.md) | SERVITOR health profile semantics, freshness, and offline pinning |
 
 ## Local development
 
@@ -97,6 +98,11 @@ if (event.eventType === "backup.completed") {
   relevant, `lastSuccessfulCheck`): a stale report, even one whose status is
   `healthy`, does not establish current service health. Stale observations must
   remain distinguishable from current observations.
+- SERVITOR's health profile is a named strict exception to extensible health
+  snapshots: it uses the shared HealthStatus v1 schema, pins one
+  `operationsMcp` readiness check, and rejects unknown fields. Its exact status,
+  freshness, and clock-skew rules are documented in
+  [the SERVITOR profile](./docs/servitor-health-profile.md).
 - Incident severity: `critical`, `high`, `medium`, `low`, `info`; incident status:
   `open`, `acknowledged`, `resolved`. The legacy MAGOS deployment snapshot and
   backup status use `started`, `completed`, `failed`. Deployment Domain execution

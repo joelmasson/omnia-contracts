@@ -1,0 +1,14 @@
+{
+  "serviceId": "SERVITOR",
+  "status": "healthy",
+  "timestamp": "2026-11-20T17:00:00Z",
+  "lastSuccessfulCheck": "2026-11-20T17:00:00Z",
+  "uptime": 3600,
+  "checks": [
+    {
+      "name": "operationsMcp",
+      "status": "healthy"
+    }
+  ],
+  "details": {}
+}
