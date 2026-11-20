@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.omnia.dev/schemas/servitor-health.v1.schema.json",
+  "title": "ServitorHealth",
+  "description": "SERVITOR current-readiness profile. Freshness limits and status semantics are defined in docs/servitor-health-profile.md.",
+  "type": "object",
+  "propertyNames": {
+    "enum": ["serviceId", "status", "timestamp", "lastSuccessfulCheck", "uptime", "checks", "details"]
+  },
+  "allOf": [
+    {
+      "$ref": "health-status.v1.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "serviceId": {
+          "const": "SERVITOR"
+        },
+        "status": {
+          "enum": ["healthy", "unhealthy", "unknown"]
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "properties": {
+              "name": {
+                "const": "operationsMcp"
+              },
+              "status": {
+                "enum": ["healthy", "unhealthy", "unknown"]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "details": {
+          "type": "object",
+          "maxProperties": 0,
+          "additionalProperties": false
+        }
+      },
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "const": "healthy"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "const": "healthy"
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "if": {
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "const": "unhealthy"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "unhealthy"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "unknown"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
