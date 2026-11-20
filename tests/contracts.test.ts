@@ -81,6 +81,10 @@ test("SERVITOR health profile constrains HealthStatus and rejects unreviewed fie
   const base = ajv.getSchema(schemaId("schemas/health-status.v1.schema.json"))!;
   assert.equal(base(report), true, ajv.errorsText(base.errors));
   assert.equal(profile(report), true, ajv.errorsText(profile.errors));
+  const withoutLastSuccessfulCheck = { ...report };
+  delete withoutLastSuccessfulCheck.lastSuccessfulCheck;
+  assert.equal(base(withoutLastSuccessfulCheck), true, "Base HealthStatus keeps this field optional");
+  assert.equal(profile(withoutLastSuccessfulCheck), false, "SERVITOR profile requires lastSuccessfulCheck");
 
   const withUnknownRootField = { ...report, futureField: true };
   assert.equal(base(withUnknownRootField), true, "Base HealthStatus remains extensible");
