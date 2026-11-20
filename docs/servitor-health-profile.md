@@ -43,11 +43,11 @@ dependency and no approved partial-readiness state. A future contract version
 would be needed before defining `degraded`; it must not be used for stale,
 unknown, or unreachable conditions.
 
-`timestamp` is the RFC 3339 time of this current assessment. When `status` is
-`healthy`, `lastSuccessfulCheck` is that assessment time. For other statuses,
-`lastSuccessfulCheck` is the most recent prior assessment that confirmed all
-required conditions, or `null` if none has succeeded. `uptime` is elapsed
-process seconds or `null` when unavailable.
+`lastSuccessfulCheck` is required in every report. It is the current
+assessment time when `status` is `healthy`; for other statuses it is the most
+recent prior assessment that confirmed all required conditions, or `null` if
+none has succeeded. `timestamp` is the RFC 3339 time of this current
+assessment. `uptime` is elapsed process seconds or `null` when unavailable.
 
 ## Freshness and clock skew
 
