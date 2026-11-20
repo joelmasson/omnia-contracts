@@ -5,7 +5,15 @@
   "description": "SERVITOR current-readiness profile. Freshness limits and status semantics are defined in docs/servitor-health-profile.md.",
   "type": "object",
   "propertyNames": {
-    "enum": ["serviceId", "status", "timestamp", "lastSuccessfulCheck", "uptime", "checks", "details"]
+    "enum": [
+      "serviceId",
+      "status",
+      "timestamp",
+      "lastSuccessfulCheck",
+      "uptime",
+      "checks",
+      "details"
+    ]
   },
   "allOf": [
     {
@@ -18,7 +26,11 @@
           "const": "SERVITOR"
         },
         "status": {
-          "enum": ["healthy", "unhealthy", "unknown"]
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "unknown"
+          ]
         },
         "checks": {
           "type": "array",
@@ -26,13 +38,20 @@
           "maxItems": 1,
           "items": {
             "type": "object",
-            "required": ["name", "status"],
+            "required": [
+              "name",
+              "status"
+            ],
             "properties": {
               "name": {
                 "const": "operationsMcp"
               },
               "status": {
-                "enum": ["healthy", "unhealthy", "unknown"]
+                "enum": [
+                  "healthy",
+                  "unhealthy",
+                  "unknown"
+                ]
               }
             },
             "additionalProperties": false
@@ -45,7 +64,9 @@
         }
       },
       "if": {
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "properties": {
           "status": {
             "const": "healthy"
@@ -69,7 +90,9 @@
       },
       "else": {
         "if": {
-          "required": ["status"],
+          "required": [
+            "status"
+          ],
           "properties": {
             "status": {
               "const": "unhealthy"
@@ -108,5 +131,8 @@
         }
       }
     }
+  ],
+  "required": [
+    "lastSuccessfulCheck"
   ]
 }
